@@ -148,6 +148,25 @@ pub async fn get_limit_resets(from: String, to: String) -> Result<Value, String>
     call_python_api(&["limits", "--from", &from, "--to", &to])
 }
 
+/// Export PNG usage report for a date range.
+///
+/// # Arguments
+///
+/// * `from` - Start date (YYYY-MM-DD)
+/// * `to` - End date (YYYY-MM-DD)
+///
+/// # Returns
+///
+/// JSON object containing:
+/// - filename: suggested filename for the PNG
+/// - data: base64-encoded PNG image data
+/// - size: size of PNG in bytes
+/// - mime_type: "image/png"
+#[tauri::command]
+pub async fn export_png_report(from: String, to: String) -> Result<Value, String> {
+    call_python_api(&["export-png", "--from", &from, "--to", &to])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

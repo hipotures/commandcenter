@@ -29,9 +29,12 @@ from command_center.database.queries import (
     query_model_details,
     query_session_details,
     get_limit_events,
+    query_usage_stats,
 )
 from command_center.cache.incremental_update import perform_incremental_update
 from command_center.aggregators.streak_calculator import calculate_streaks
+from command_center.visualization.png_generator import generate_usage_report_png
+import base64
 
 
 def calculate_trend(current: float, previous: float) -> float:
@@ -223,6 +226,40 @@ def get_limit_resets(date_from: str, date_to: str) -> list[dict]:
         return get_limit_events(conn, date_from, date_to)
 
 
+def export_png_report(date_from: str, date_to: str) -> dict:
+    """
+    Generate PNG usage report and return as base64-encoded string.
+
+    Args:
+        date_from: Start date (YYYY-MM-DD)
+        date_to: End date (YYYY-MM-DD)
+
+    Returns:
+        Dict with base64-encoded PNG data and filename
+    """
+    with get_db_connection() as conn:
+        init_database(conn)
+
+        # Query usage stats
+        stats = query_usage_stats(conn, date_from, date_to)
+
+        # Generate PNG
+        png_bytes = generate_usage_report_png(stats)
+
+        # Encode to base64
+        png_base64 = base64.b64encode(png_bytes).decode('utf-8')
+
+        # Generate filename
+        filename = f"cc-usage-report-{date_from}_{date_to}.png"
+
+        return {
+            "filename": filename,
+            "data": png_base64,
+            "size": len(png_bytes),
+            "mime_type": "image/png"
+        }
+
+
 def main():
     """CLI entry point for Tauri API."""
     parser = argparse.ArgumentParser(
@@ -306,6 +343,20 @@ def main():
         help="End date (YYYY-MM-DD)"
     )
 
+    # export-png subcommand
+    png_parser = subparsers.add_parser(
+        "export-png",
+        help="Export PNG usage report"
+    )
+    png_parser.add_argument(
+        "--from", dest="date_from", required=True,
+        help="Start date (YYYY-MM-DD)"
+    )
+    png_parser.add_argument(
+        "--to", dest="date_to", required=True,
+        help="End date (YYYY-MM-DD)"
+    )
+
     args = parser.parse_args()
 
     try:
@@ -324,6 +375,8 @@ def main():
             result = get_session_details(args.session_id)
         elif args.command == "limits":
             result = get_limit_resets(args.date_from, args.date_to)
+        elif args.command == "export-png":
+            result = export_png_report(args.date_from, args.date_to)
         else:
             result = {"error": f"Unknown command: {args.command}"}
 

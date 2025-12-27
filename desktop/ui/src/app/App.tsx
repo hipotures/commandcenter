@@ -518,6 +518,13 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], showResets = tr
     { key: 'cost', label: 'Cost', color: tokens.colors.semanticSuccess },
   ];
 
+  const limitTypes = [
+    { type: '5-hour', color: '#F59E0B', label: '5-Hour Limit' },
+    { type: 'session', color: '#EF4444', label: 'Session Limit' },
+    { type: 'spending_cap', color: '#DC2626', label: 'Spending Cap' },
+    { type: 'context', color: '#7C3AED', label: 'Context Limit' },
+  ];
+
   // Format period label based on granularity
   const formatPeriodLabel = (period: string) => {
     if (granularity === 'hour') {
@@ -619,9 +626,11 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], showResets = tr
         </div>
       </div>
 
-      <div style={{ height: '280px' }}>
+      <div style={{ display: 'flex', gap: '20px' }}>
+        {/* Chart */}
+        <div style={{ flex: 1, height: '280px', minWidth: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={tokens.colors.accentPrimary} stopOpacity={0.3}/>
@@ -633,8 +642,10 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], showResets = tr
               dataKey="period"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: tokens.colors.textMuted, fontSize: 12 }}
+              tick={{ fill: tokens.colors.textMuted, fontSize: 11 }}
               tickFormatter={formatPeriodLabel}
+              angle={0}
+              height={40}
             />
             <YAxis
               axisLine={false}
@@ -703,17 +714,76 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], showResets = tr
                   stroke={colors[reset.limit_type as keyof typeof colors] || '#94A3B8'}
                   strokeWidth={2}
                   strokeDasharray="5 5"
-                  label={{
-                    value: reset.limit_type,
-                    position: 'top',
-                    fill: tokens.colors.textMuted,
-                    fontSize: 10,
-                  }}
                 />
               );
             })}
           </AreaChart>
         </ResponsiveContainer>
+        </div>
+
+        {/* Legend */}
+        {showResets && (
+          <div style={{
+            width: '140px',
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}>
+            <div style={{
+              fontSize: '11px',
+              fontWeight: '600',
+              color: tokens.colors.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              marginBottom: '4px',
+            }}>
+              Limit Types
+            </div>
+            {limitTypes.map(limit => {
+              // Check if this limit type exists in current data
+              const hasData = limitResets.some((r: any) => r.limit_type === limit.type);
+              return (
+                <div
+                  key={limit.type}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    background: tokens.colors.background,
+                    opacity: hasData ? 1 : 0.4,
+                  }}
+                >
+                  <div style={{
+                    width: '20px',
+                    height: '2px',
+                    background: limit.color,
+                    borderRadius: '1px',
+                    position: 'relative',
+                  }}>
+                    <div style={{
+                      position: 'absolute',
+                      top: '-1px',
+                      left: 0,
+                      right: 0,
+                      height: '4px',
+                      background: `repeating-linear-gradient(90deg, ${limit.color} 0px, ${limit.color} 5px, transparent 5px, transparent 10px)`,
+                    }} />
+                  </div>
+                  <span style={{
+                    fontSize: '11px',
+                    color: tokens.colors.textSecondary,
+                    fontWeight: '500',
+                  }}>
+                    {limit.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1166,6 +1236,7 @@ function DashboardContent() {
   const [tempTo, setTempTo] = useState(defaultTo);
   const [showPicker, setShowPicker] = useState(false);
   const [showLimitResets, setShowLimitResets] = useState(true);
+  const [shouldRefresh, setShouldRefresh] = useState(false);
 
   // Auto-select granularity based on date range
   const calculateGranularity = (from: string, to: string): 'hour' | 'day' | 'week' | 'month' => {
@@ -1184,7 +1255,7 @@ function DashboardContent() {
   const { data: apiData, isLoading, error } = useDashboard(
     dateRange.from,
     dateRange.to,
-    false,
+    shouldRefresh,
     granularity
   );
 
@@ -1194,6 +1265,60 @@ function DashboardContent() {
     dateRange.to,
     showLimitResets
   );
+
+  // Handle refresh button click
+  const handleRefresh = () => {
+    setShouldRefresh(true);
+    // Reset to false after a short delay to allow re-triggering
+    setTimeout(() => setShouldRefresh(false), 100);
+  };
+
+  // Handle download PNG button click
+  const handleDownloadPNG = async () => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
+
+      // Generate PNG on backend
+      const result = await invoke('export_png_report', {
+        from: dateRange.from,
+        to: dateRange.to,
+      });
+
+      const { filename, data } = result as { filename: string; data: string };
+
+      // Show save dialog
+      const filePath = await save({
+        defaultPath: filename,
+        filters: [{
+          name: 'PNG Image',
+          extensions: ['png']
+        }]
+      });
+
+      if (!filePath) {
+        // User cancelled
+        return;
+      }
+
+      // Decode base64 to bytes
+      const byteCharacters = atob(data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+
+      // Write file
+      await writeFile(filePath, byteArray);
+
+      alert(`PNG report saved to:\n${filePath}`);
+    } catch (err) {
+      console.error('Failed to download PNG:', err);
+      alert('Failed to download PNG report. Check console for details.');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -1680,31 +1805,50 @@ function DashboardContent() {
             </div>
             
             {/* Actions */}
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: `1px solid ${tokens.colors.surfaceBorder}`,
-              background: 'transparent',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}>
+            <button
+              onClick={handleRefresh}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                border: `1px solid ${tokens.colors.surfaceBorder}`,
+                background: 'transparent',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = tokens.colors.background;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
               <RefreshCw size={18} color={tokens.colors.textMuted} />
             </button>
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: `1px solid ${tokens.colors.surfaceBorder}`,
-              background: 'transparent',
-              cursor: 'pointer',
-            }}>
+            <button
+              onClick={handleDownloadPNG}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                border: `1px solid ${tokens.colors.surfaceBorder}`,
+                background: 'transparent',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = tokens.colors.background;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
               <Download size={18} color={tokens.colors.textMuted} />
             </button>
             <button style={{
