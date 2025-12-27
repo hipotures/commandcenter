@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "commandcenter"
+version = "2.0.0"
+description = "Claude Code Wrapped - Modern SQLite-based analytics"
+requires-python = ">=3.10"
+dependencies = [
+    "Pillow>=10.0.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+commandcenter = "commandcenter.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/commandcenter"]
