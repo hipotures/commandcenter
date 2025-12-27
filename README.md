@@ -85,3 +85,36 @@ Data stored in `~/.claude/db/cc-sessions.db` with hourly aggregation (local time
 - Python >= 3.10
 - Pillow >= 10.0.0
 - rich >= 13.0.0
+
+### Technical Documentation
+
+Complete technical documentation is available in separate chapters:
+
+#### Core Concepts
+- [1. Executive Summary](docs/chapters/01-executive-summary.md)
+- [2. System Overview](docs/chapters/02-system-overview.md)
+- [3. Architecture & Design Philosophy](docs/chapters/03-architecture-design-philosophy.md)
+
+#### Implementation Details
+- [4. Data Pipeline Architecture](docs/chapters/04-data-pipeline-architecture.md)
+- [5. Database Schema & Design](docs/chapters/05-database-schema-design.md)
+- [6. Time Handling & UTC Conversion](docs/chapters/06-time-handling-utc-conversion.md)
+- [7. Incremental Update Mechanism](docs/chapters/07-incremental-update-mechanism.md)
+- [8. Deduplication Strategy](docs/chapters/08-deduplication-strategy.md)
+
+#### Advanced Features
+- [9. Aggregation Layer](docs/chapters/09-aggregation-layer.md)
+- [10. Visualization System](docs/chapters/10-visualization-system.md)
+- [11. API Reference](docs/chapters/11-api-reference.md)
+
+#### Operations & Maintenance
+- [12. Performance Characteristics](docs/chapters/12-performance-characteristics.md)
+- [13. Security & Data Privacy](docs/chapters/13-security-data-privacy.md)
+- [14. Deployment & Configuration](docs/chapters/14-deployment-configuration.md)
+- [15. Troubleshooting Guide](docs/chapters/15-troubleshooting-guide.md)
+
+#### Reference
+- [16. Appendices](docs/chapters/16-appendices.md)
+- [17. Conclusion](docs/chapters/17-conclusion.md)
+
+📖 **[Browse all chapters](docs/chapters/README.md)**
