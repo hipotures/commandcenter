@@ -1,10 +1,18 @@
 /**
- * Main Application Component
+ * Main Application Component - Full Dashboard with Charts and Drill-down
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAppStore } from './state/store';
 import { useDashboard } from './state/queries';
+import { Header } from './components/Header';
+import { TimelineChart } from './components/charts/TimelineChart';
+import { HourlyChart } from './components/charts/HourlyChart';
+import { ModelPieChart } from './components/charts/ModelPieChart';
+import { Heatmap } from './components/charts/Heatmap';
+import { DayDrawer } from './components/drawers/DayDrawer';
+import { ModelDrawer } from './components/drawers/ModelDrawer';
+import { SessionDrawer } from './components/drawers/SessionDrawer';
 import './styles/tokens.css';
 import './styles/global.css';
 
@@ -17,13 +25,26 @@ const queryClient = new QueryClient({
 });
 
 function Dashboard() {
-  const { darkMode, dateFrom, dateTo, granularity, liveMode, liveInterval } =
-    useAppStore();
-
-  const { data, isLoading, error, refetch } = useDashboard(
+  const {
+    darkMode,
     dateFrom,
     dateTo,
-    false,
+    granularity,
+    liveMode,
+    liveInterval,
+    selectedDay,
+    selectedModel,
+    selectedSession,
+    setSelectedDay,
+    setSelectedModel,
+    setSelectedSession,
+  } = useAppStore();
+
+  const [refresh, setRefresh] = useState(false);
+  const { data, isLoading, error, refetch, isFetching } = useDashboard(
+    dateFrom,
+    dateTo,
+    refresh,
     granularity
   );
 
@@ -39,10 +60,16 @@ function Dashboard() {
   useEffect(() => {
     if (!liveMode) return;
     const interval = setInterval(() => {
-      refetch();
+      setRefresh(true);
+      refetch().then(() => setRefresh(false));
     }, liveInterval * 1000);
     return () => clearInterval(interval);
   }, [liveMode, liveInterval, refetch]);
+
+  const handleRefresh = () => {
+    setRefresh(true);
+    refetch().then(() => setRefresh(false));
+  };
 
   if (isLoading) {
     return (
@@ -77,13 +104,15 @@ function Dashboard() {
           {error instanceof Error ? error.message : 'Unknown error'}
         </p>
         <button
-          onClick={() => refetch()}
+          onClick={handleRefresh}
           style={{
             padding: 'var(--spacing-sm) var(--spacing-lg)',
             backgroundColor: 'var(--color-accent-primary)',
             color: 'white',
+            border: 'none',
             borderRadius: 'var(--radius-md)',
             fontWeight: 'var(--font-weight-semibold)',
+            cursor: 'pointer',
           }}
         >
           Retry
@@ -95,29 +124,9 @@ function Dashboard() {
   if (!data) return null;
 
   return (
-    <div style={{ padding: 'var(--spacing-xl)' }}>
-      {/* Header */}
-      <header
-        style={{
-          marginBottom: 'var(--spacing-2xl)',
-          paddingBottom: 'var(--spacing-lg)',
-          borderBottom: '2px solid var(--color-border)',
-        }}
-      >
-        <h1
-          style={{
-            fontSize: 'var(--font-size-2xl)',
-            fontWeight: 'var(--font-weight-bold)',
-            color: 'var(--color-accent-primary)',
-            marginBottom: 'var(--spacing-sm)',
-          }}
-        >
-          COMMAND CENTER
-        </h1>
-        <p style={{ color: 'var(--color-text-secondary)' }}>
-          Claude Code Usage Dashboard • {data.range.from} - {data.range.to}
-        </p>
-      </header>
+    <div style={{ padding: 'var(--spacing-xl)', maxWidth: '1600px', margin: '0 auto' }}>
+      {/* Header with controls */}
+      <Header onRefresh={handleRefresh} isRefreshing={isFetching} />
 
       {/* KPI Strip */}
       <div
@@ -128,18 +137,9 @@ function Dashboard() {
           marginBottom: 'var(--spacing-2xl)',
         }}
       >
-        <KPICard
-          label="Messages"
-          value={data.totals.messages.toLocaleString()}
-        />
-        <KPICard
-          label="Sessions"
-          value={data.totals.sessions.toLocaleString()}
-        />
-        <KPICard
-          label="Tokens"
-          value={formatTokens(data.totals.tokens)}
-        />
+        <KPICard label="Messages" value={data.totals.messages.toLocaleString()} />
+        <KPICard label="Sessions" value={data.totals.sessions.toLocaleString()} />
+        <KPICard label="Tokens" value={formatTokens(data.totals.tokens)} />
         <KPICard label="Cost" value={`$${data.totals.cost.toFixed(2)}`} />
         <KPICard
           label="Streak"
@@ -147,74 +147,48 @@ function Dashboard() {
         />
       </div>
 
-      {/* Models */}
+      {/* Timeline Chart */}
+      <Section title="Token Usage Timeline">
+        <TimelineChart data={data.timeline.data} granularity={granularity} />
+      </Section>
+
+      {/* Two Column Layout */}
       <div
         style={{
-          backgroundColor: 'var(--color-surface)',
-          padding: 'var(--spacing-lg)',
-          borderRadius: 'var(--radius-xl)',
-          boxShadow: 'var(--shadow-md)',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+          gap: 'var(--spacing-xl)',
           marginBottom: 'var(--spacing-xl)',
         }}
       >
-        <h2
-          style={{
-            fontSize: 'var(--font-size-md)',
-            fontWeight: 'var(--font-weight-semibold)',
-            marginBottom: 'var(--spacing-md)',
-            color: 'var(--color-text-primary)',
-          }}
-        >
-          Model Distribution
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-          {data.model_distribution.slice(0, 5).map((model) => (
-            <div
-              key={model.model}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: 'var(--spacing-sm)',
-                backgroundColor: 'var(--color-background)',
-                borderRadius: 'var(--radius-md)',
-              }}
-            >
-              <span style={{ fontWeight: 'var(--font-weight-medium)' }}>
-                {model.display_name}
-              </span>
-              <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'center' }}>
-                <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
-                  {formatTokens(model.tokens)} tokens
-                </span>
-                <span style={{ color: 'var(--color-accent-primary)', fontWeight: 'var(--font-weight-semibold)' }}>
-                  {model.percent}%
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+        {/* Hourly Profile */}
+        <Section title="24-Hour Activity Profile">
+          <HourlyChart data={data.hourly_profile} />
+        </Section>
+
+        {/* Model Distribution */}
+        <Section title="Model Distribution">
+          <ModelPieChart
+            data={data.model_distribution}
+            onModelClick={(model) => setSelectedModel(model)}
+          />
+        </Section>
       </div>
 
-      {/* Recent Sessions */}
-      <div
-        style={{
-          backgroundColor: 'var(--color-surface)',
-          padding: 'var(--spacing-lg)',
-          borderRadius: 'var(--radius-xl)',
-          boxShadow: 'var(--shadow-md)',
-        }}
-      >
-        <h2
-          style={{
-            fontSize: 'var(--font-size-md)',
-            fontWeight: 'var(--font-weight-semibold)',
-            marginBottom: 'var(--spacing-md)',
-            color: 'var(--color-text-primary)',
-          }}
-        >
-          Recent Sessions
-        </h2>
+      {/* Heatmap */}
+      <Section title="Daily Activity Heatmap">
+        <Heatmap
+          data={Object.entries(data.daily_activity).map(([date, messages]) => ({
+            date,
+            messages: messages as number,
+            tokens: messages as number * 1000, // Approximate tokens
+          }))}
+          onDayClick={(day) => setSelectedDay(day)}
+        />
+      </Section>
+
+      {/* Recent Sessions Table */}
+      <Section title="Recent Sessions">
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -223,23 +197,36 @@ function Dashboard() {
                 <th style={tableHeaderStyle}>Model</th>
                 <th style={tableHeaderStyle}>Messages</th>
                 <th style={tableHeaderStyle}>Tokens</th>
+                <th style={tableHeaderStyle}>Cost</th>
                 <th style={tableHeaderStyle}>Last Time</th>
               </tr>
             </thead>
             <tbody>
-              {data.recent_sessions.slice(0, 10).map((session) => (
+              {data.recent_sessions.slice(0, 15).map((session) => (
                 <tr
                   key={session.session_id}
-                  style={{ borderBottom: '1px solid var(--color-border)' }}
+                  onClick={() => setSelectedSession(session.session_id)}
+                  style={{
+                    borderBottom: '1px solid var(--color-border)',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--color-surface)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                 >
                   <td style={tableCellStyle}>
                     <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                      {session.session_id.slice(0, 8)}...
+                      {session.session_id.slice(0, 12)}...
                     </code>
                   </td>
                   <td style={tableCellStyle}>{session.display_name}</td>
                   <td style={tableCellStyle}>{session.messages}</td>
                   <td style={tableCellStyle}>{formatTokens(session.tokens)}</td>
+                  <td style={tableCellStyle}>${session.cost.toFixed(4)}</td>
                   <td style={tableCellStyle}>
                     {new Date(session.last_time).toLocaleString()}
                   </td>
@@ -248,7 +235,12 @@ function Dashboard() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Section>
+
+      {/* Drawers */}
+      <DayDrawer date={selectedDay} onClose={() => setSelectedDay(null)} />
+      <ModelDrawer model={selectedModel} onClose={() => setSelectedModel(null)} />
+      <SessionDrawer sessionId={selectedSession} onClose={() => setSelectedSession(null)} />
 
       {/* Footer */}
       <footer
@@ -261,13 +253,39 @@ function Dashboard() {
           fontSize: 'var(--font-size-sm)',
         }}
       >
-        Command Center • Desktop Dashboard • Tauri + React
+        Command Center • {data.range.from} - {data.range.to}
       </footer>
     </div>
   );
 }
 
 // Helper Components
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        backgroundColor: 'var(--color-surface)',
+        padding: 'var(--spacing-lg)',
+        borderRadius: 'var(--radius-xl)',
+        boxShadow: 'var(--shadow-md)',
+        marginBottom: 'var(--spacing-xl)',
+      }}
+    >
+      <h2
+        style={{
+          fontSize: 'var(--font-size-md)',
+          fontWeight: 'var(--font-weight-semibold)',
+          marginBottom: 'var(--spacing-md)',
+          color: 'var(--color-text-primary)',
+        }}
+      >
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
 function KPICard({ label, value }: { label: string; value: string }) {
   return (
     <div

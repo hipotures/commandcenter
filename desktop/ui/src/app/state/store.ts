@@ -9,16 +9,27 @@ type DrawerType = 'messages' | 'sessions' | 'tokens' | 'cost' | 'streak' | 'cach
 interface AppState {
   // Theme
   darkMode: boolean;
+  setDarkMode: (dark: boolean) => void;
   toggleDarkMode: () => void;
 
   // Date range
   dateFrom: string;
   dateTo: string;
+  setDateFrom: (from: string) => void;
+  setDateTo: (to: string) => void;
   setDateRange: (from: string, to: string) => void;
 
   // Granularity
   granularity: Granularity;
   setGranularity: (g: Granularity) => void;
+
+  // Drill-down state
+  selectedDay: string | null;
+  selectedModel: string | null;
+  selectedSession: string | null;
+  setSelectedDay: (day: string | null) => void;
+  setSelectedModel: (model: string | null) => void;
+  setSelectedSession: (session: string | null) => void;
 
   // Live mode
   liveMode: boolean;
@@ -57,16 +68,27 @@ const defaultTo = today();
 export const useAppStore = create<AppState>((set) => ({
   // Theme
   darkMode: false,
+  setDarkMode: (darkMode) => set({ darkMode }),
   toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
 
   // Date range
   dateFrom: defaultFrom,
   dateTo: defaultTo,
+  setDateFrom: (dateFrom) => set({ dateFrom }),
+  setDateTo: (dateTo) => set({ dateTo }),
   setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
 
   // Granularity
   granularity: 'month',
   setGranularity: (granularity) => set({ granularity }),
+
+  // Drill-down state
+  selectedDay: null,
+  selectedModel: null,
+  selectedSession: null,
+  setSelectedDay: (selectedDay) => set({ selectedDay }),
+  setSelectedModel: (selectedModel) => set({ selectedModel }),
+  setSelectedSession: (selectedSession) => set({ selectedSession }),
 
   // Live mode
   liveMode: false,
