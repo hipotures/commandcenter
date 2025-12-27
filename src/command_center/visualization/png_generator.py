@@ -17,6 +17,7 @@ except ImportError:
 from command_center.config import COLORS, CANVAS_WIDTH, CANVAS_HEIGHT, FONT_PATHS
 from command_center.database.models import UsageStats
 from command_center.aggregators.streak_calculator import calculate_streaks
+from command_center.utils.model_names import format_model_name
 
 
 def load_font(size: int):
@@ -33,18 +34,6 @@ def load_font(size: int):
 def draw_rounded_rectangle(draw, xy, radius, fill, outline=None, width=1):
     """Draw a rounded rectangle"""
     draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
-
-
-def format_model_name(model: str) -> str:
-    """Format model name for display"""
-    display_name = model.replace("claude-", "")
-    display_name = display_name.replace("-20250514", "").replace("-20250929", "").replace("-20250805", "").replace("-20251101", "")
-    display_name = display_name.replace("sonnet-4-5", "Sonnet 4.5")
-    display_name = display_name.replace("sonnet-4", "Sonnet 4")
-    display_name = display_name.replace("opus-4-5", "Opus 4.5")
-    display_name = display_name.replace("opus-4-1", "Opus 4.1")
-    display_name = display_name.replace("haiku-4-5", "Haiku 4.5")
-    return display_name
 
 
 def format_tokens(count: int) -> str:
