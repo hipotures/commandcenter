@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 from rich.console import Console
 
+from commandcenter import __version__
 from commandcenter.database.connection import get_db_connection
 from commandcenter.database.schema import init_database, check_integrity
 from commandcenter.database.queries import query_usage_stats
@@ -62,7 +63,7 @@ def parse_args():
     parser.add_argument(
         "--version",
         action="version",
-        version="commandcenter 2.1.0"
+        version=f"commandcenter {__version__}"
     )
 
     # Default dates

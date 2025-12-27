@@ -48,7 +48,7 @@ Run with --rebuild-db to fix
 **Solution:**
 ```bash
 # Backup current database
-cp ~/.claude/db/cc-sessions.db ~/cc-sessions-backup.db
+cp ~/.claude/db/commandcenter.db ~/commandcenter-backup.db
 
 # Rebuild from scratch
 commandcenter --rebuild-db --verbose
@@ -93,7 +93,7 @@ open cc-usage-report-*.png
 commandcenter --verbose
 
 # Check database size
-ls -lh ~/.claude/db/cc-sessions.db
+ls -lh ~/.claude/db/commandcenter.db
 ```
 
 **Solution:**
@@ -160,7 +160,7 @@ commandcenter --db-stats
 #### Inspect Database Manually
 
 ```bash
-sqlite3 ~/.claude/db/cc-sessions.db
+sqlite3 ~/.claude/db/commandcenter.db
 ```
 
 ```sql

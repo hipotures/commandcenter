@@ -60,7 +60,7 @@ uv run commandcenter --verbose
 
 ```python
 # Database location
-DB_PATH = os.path.join(HOME, ".claude", "db", "cc-sessions.db")
+DB_PATH = os.path.join(HOME, ".claude", "db", "commandcenter.db")
 
 # Claude directories to scan
 CLAUDE_DIRS = [
@@ -185,7 +185,7 @@ uv tool install -e .
 **Solution:**
 ```bash
 # Find process
-lsof ~/.claude/db/cc-sessions.db
+lsof ~/.claude/db/commandcenter.db
 
 # Kill process or wait for completion
 ```

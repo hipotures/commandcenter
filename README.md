@@ -84,7 +84,7 @@ uv run commandcenter --verbose
 **First Run**: Imports ALL historical data from all years (~1-2 minutes)
 **Subsequent Runs**: Only processes new/modified files (<5 seconds)
 
-Data stored in `~/.claude/db/cc-sessions.db` with hourly aggregation (local time).
+Data stored in `~/.claude/db/commandcenter.db` with hourly aggregation (local time).
 
 ### Output
 

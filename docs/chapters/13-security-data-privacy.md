@@ -34,7 +34,7 @@
 
 #### Where is Data Stored?
 
-**Database Location:** `~/.claude/db/cc-sessions.db`
+**Database Location:** `~/.claude/db/commandcenter.db`
 
 **File Permissions:** Default (user-only read/write on Unix-like systems)
 
@@ -47,7 +47,7 @@
 **Deletion:**
 ```bash
 # Remove database
-rm ~/.claude/db/cc-sessions.db
+rm ~/.claude/db/commandcenter.db
 
 # Remove PNG outputs
 rm cc-usage-report-*.png
@@ -69,7 +69,7 @@ VACUUM;
 **Recommendation:** Restrict database to user-only access.
 
 ```bash
-chmod 600 ~/.claude/db/cc-sessions.db
+chmod 600 ~/.claude/db/commandcenter.db
 ```
 
 #### 2. Backup Strategy
@@ -78,10 +78,10 @@ chmod 600 ~/.claude/db/cc-sessions.db
 
 ```bash
 # Backup database
-cp ~/.claude/db/cc-sessions.db ~/backups/cc-sessions-$(date +%Y%m%d).db
+cp ~/.claude/db/commandcenter.db ~/backups/commandcenter-$(date +%Y%m%d).db
 
 # Encrypt backup
-gpg -e ~/backups/cc-sessions-20251227.db
+gpg -e ~/backups/commandcenter-20251227.db
 ```
 
 #### 3. Multi-User Systems

@@ -11,7 +11,7 @@ CLAUDE_DIRS = [
 ]
 
 # Database
-DB_PATH = os.path.join(HOME, ".claude", "db", "cc-sessions.db")
+DB_PATH = os.path.join(HOME, ".claude", "db", "commandcenter.db")
 
 # Design tokens - colors from original design-tokens.ts
 COLORS = {

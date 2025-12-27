@@ -136,7 +136,7 @@ The tool is optimized for speed on subsequent runs:
 ## Configuration
 
 All configuration is in `config.py`:
-- Database path: `~/.claude/db/cc-sessions.db`
+- Database path: `~/.claude/db/commandcenter.db`
 - Session paths: `~/.claude/sessions/` or `~/.config/claude/sessions/`
 - Canvas size: 1500×1400px
 - Color scheme: Defined in `COLORS` dict
@@ -157,4 +157,4 @@ Key dataclasses in `database/models.py`:
 2. **Always use local time** for aggregations - matches user's working hours
 3. **Recompute aggregates** after any direct `message_entries` modifications
 4. **Use batch inserts** (BATCH_INSERT_SIZE=100) for performance
-5. **Database location** is fixed at `~/.claude/db/cc-sessions.db` (not configurable)
+5. **Database location** is fixed at `~/.claude/db/commandcenter.db` (not configurable)
