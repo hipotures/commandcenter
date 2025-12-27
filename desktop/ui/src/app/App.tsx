@@ -1,5 +1,8 @@
 import { useState, useMemo } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import './datepicker-custom.css';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -919,6 +922,9 @@ function DashboardContent() {
   const defaultTo = now.toISOString().slice(0, 10);
 
   const [dateRange, setDateRange] = useState({ from: defaultFrom, to: defaultTo });
+  const [tempFrom, setTempFrom] = useState(defaultFrom);
+  const [tempTo, setTempTo] = useState(defaultTo);
+  const [showPicker, setShowPicker] = useState(false);
 
   const { data: apiData, isLoading, error } = useDashboard(
     dateRange.from,
@@ -1080,35 +1086,154 @@ function DashboardContent() {
               />
             </div>
             
-            {/* Date range - simple inputs like original */}
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input
-                type="date"
-                value={dateRange.from}
-                onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+            {/* Date range with Apply button */}
+            <div style={{ position: 'relative' }}>
+              <div
+                onClick={() => {
+                  setTempFrom(dateRange.from);
+                  setTempTo(dateRange.to);
+                  setShowPicker(!showPicker);
+                }}
                 style={{
-                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  background: tokens.colors.background,
                   borderRadius: '10px',
                   border: `1px solid ${tokens.colors.surfaceBorder}`,
-                  backgroundColor: tokens.colors.surface,
-                  color: tokens.colors.textPrimary,
-                  fontSize: '14px',
+                  cursor: 'pointer',
                 }}
-              />
-              <span style={{ color: tokens.colors.textMuted }}>to</span>
-              <input
-                type="date"
-                value={dateRange.to}
-                onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  border: `1px solid ${tokens.colors.surfaceBorder}`,
-                  backgroundColor: tokens.colors.surface,
-                  color: tokens.colors.textPrimary,
-                  fontSize: '14px',
-                }}
-              />
+              >
+                <Calendar size={16} color={tokens.colors.accentPrimary} />
+                <span style={{ fontSize: '14px', color: tokens.colors.textSecondary }}>
+                  {dateRange.from} → {dateRange.to}
+                </span>
+                <ChevronDown size={14} color={tokens.colors.textMuted} />
+              </div>
+
+              {showPicker && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '50px',
+                    right: 0,
+                    background: tokens.colors.surface,
+                    border: `1px solid ${tokens.colors.surfaceBorder}`,
+                    borderRadius: '12px',
+                    padding: '20px',
+                    boxShadow: tokens.shadows.lg,
+                    zIndex: 1000,
+                    minWidth: '280px',
+                  }}
+                >
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: tokens.colors.textMuted,
+                      marginBottom: '6px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}>
+                      From
+                    </label>
+                    <DatePicker
+                      selected={new Date(tempFrom)}
+                      onChange={(date: Date | null) => date && setTempFrom(date.toISOString().split('T')[0])}
+                      dateFormat="yyyy-MM-dd"
+                      shouldCloseOnSelect={true}
+                      customInput={
+                        <input
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px',
+                            border: `1px solid ${tokens.colors.surfaceBorder}`,
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            fontFamily: "'DM Mono', monospace",
+                            color: tokens.colors.textPrimary,
+                            background: tokens.colors.background,
+                            cursor: 'pointer',
+                          }}
+                        />
+                      }
+                    />
+                  </div>
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: tokens.colors.textMuted,
+                      marginBottom: '6px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}>
+                      To
+                    </label>
+                    <DatePicker
+                      selected={new Date(tempTo)}
+                      onChange={(date: Date | null) => date && setTempTo(date.toISOString().split('T')[0])}
+                      dateFormat="yyyy-MM-dd"
+                      shouldCloseOnSelect={true}
+                      customInput={
+                        <input
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px',
+                            border: `1px solid ${tokens.colors.surfaceBorder}`,
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            fontFamily: "'DM Mono', monospace",
+                            color: tokens.colors.textPrimary,
+                            background: tokens.colors.background,
+                            cursor: 'pointer',
+                          }}
+                        />
+                      }
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => setShowPicker(false)}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        borderRadius: '8px',
+                        border: `1px solid ${tokens.colors.surfaceBorder}`,
+                        background: 'transparent',
+                        color: tokens.colors.textSecondary,
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDateRange({ from: tempFrom, to: tempTo });
+                        setShowPicker(false);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: tokens.colors.accentPrimary,
+                        color: tokens.colors.surface,
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* Actions */}
