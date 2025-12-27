@@ -6,7 +6,7 @@ import os
 from contextlib import contextmanager
 from typing import Generator
 
-from commandcenter.config import DB_PATH
+from command_center.config import DB_PATH
 
 
 def ensure_db_directory():

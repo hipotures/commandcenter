@@ -4,7 +4,7 @@ File change detection
 import os
 from typing import List
 
-from commandcenter.database.models import FileStatus
+from command_center.database.models import FileStatus
 
 
 def detect_file_changes(discovered_files: List[str],

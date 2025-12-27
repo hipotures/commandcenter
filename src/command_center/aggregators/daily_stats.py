@@ -3,7 +3,7 @@ Daily statistics computation
 """
 import sqlite3
 
-from commandcenter.database.queries import query_daily_stats
+from command_center.database.queries import query_daily_stats
 
 
 def compute_daily_stats(conn: sqlite3.Connection, year: int) -> dict[str, int]:

@@ -5,8 +5,8 @@ import sqlite3
 from typing import Optional
 from datetime import datetime
 
-from commandcenter.database.models import MessageEntry, UsageStats
-from commandcenter.config import BATCH_INSERT_SIZE
+from command_center.database.models import MessageEntry, UsageStats
+from command_center.config import BATCH_INSERT_SIZE
 
 
 def insert_message_entries(conn: sqlite3.Connection, entries: list[MessageEntry]):

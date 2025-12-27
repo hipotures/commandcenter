@@ -4,7 +4,7 @@ File scanning - discover .jsonl files
 import os
 from typing import List
 
-from commandcenter.config import CLAUDE_DIRS
+from command_center.config import CLAUDE_DIRS
 
 
 def scan_jsonl_files() -> List[str]:

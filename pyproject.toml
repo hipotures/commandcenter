@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "commandcenter"
+name = "command-center"
 version = "2.2.0"
 description = "Claude Code Usage Reports - Modern SQLite-based analytics"
 requires-python = ">=3.10"
@@ -13,7 +13,8 @@ dependencies = [
 ]
 
 [project.scripts]
-commandcenter = "commandcenter.__main__:main"
+command-center = "command_center.__main__:main"
+commandcenter = "command_center.__main__:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/commandcenter"]
+packages = ["src/command_center"]

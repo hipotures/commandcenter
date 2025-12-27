@@ -8,14 +8,14 @@ import sys
 from datetime import datetime
 from rich.console import Console
 
-from commandcenter import __version__
-from commandcenter.database.connection import get_db_connection
-from commandcenter.database.schema import init_database, check_integrity
-from commandcenter.database.queries import query_usage_stats
-from commandcenter.cache.incremental_update import perform_incremental_update
-from commandcenter.visualization.png_generator import generate_usage_report_png
-from commandcenter.visualization.terminal_display import display_png_in_terminal
-from commandcenter.utils.console_output import show_db_stats
+from command_center import __version__
+from command_center.database.connection import get_db_connection
+from command_center.database.schema import init_database, check_integrity
+from command_center.database.queries import query_usage_stats
+from command_center.cache.incremental_update import perform_incremental_update
+from command_center.visualization.png_generator import generate_usage_report_png
+from command_center.visualization.terminal_display import display_png_in_terminal
+from command_center.utils.console_output import show_db_stats
 
 
 console = Console()

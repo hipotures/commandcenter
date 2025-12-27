@@ -179,7 +179,7 @@
 4. **Project Tagging:** Track which projects used most tokens
 5. **Cost Alerts:** Notify when usage exceeds budget
 6. **Performance Optimization:** Use `ujson`/`orjson` for faster parsing
-7. **Configuration File:** Support `~/.config/commandcenter/config.toml`
+7. **Configuration File:** Support `~/.config/command-center/config.toml`
 8. **API Server:** Expose statistics via HTTP API
 9. **Real-time Monitoring:** Watch JSONL files for live updates
 10. **Multi-user Support:** Separate databases per user on shared systems

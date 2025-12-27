@@ -1,6 +1,6 @@
 ## API Reference
 
-### Module: `commandcenter.database.connection`
+### Module: `command_center.database.connection`
 
 #### `get_db_connection()`
 
@@ -12,7 +12,7 @@
 
 **Usage:**
 ```python
-from commandcenter.database.connection import get_db_connection
+from command-center.database.connection import get_db_connection
 
 with get_db_connection() as conn:
     cursor = conn.cursor()
@@ -29,7 +29,7 @@ with get_db_connection() as conn:
 
 ---
 
-### Module: `commandcenter.database.schema`
+### Module: `command_center.database.schema`
 
 #### `init_database(conn: sqlite3.Connection)`
 
@@ -69,7 +69,7 @@ if not check_integrity(conn):
 
 ---
 
-### Module: `commandcenter.database.queries`
+### Module: `command_center.database.queries`
 
 #### `insert_message_entries(conn: sqlite3.Connection, entries: list[MessageEntry])`
 
@@ -144,7 +144,7 @@ recompute_hourly_aggregates(conn, affected_hours)
 
 ---
 
-### Module: `commandcenter.collectors.file_scanner`
+### Module: `command_center.collectors.file_scanner`
 
 #### `scan_jsonl_files() -> List[str]`
 
@@ -160,7 +160,7 @@ recompute_hourly_aggregates(conn, affected_hours)
 
 **Usage:**
 ```python
-from commandcenter.collectors.file_scanner import scan_jsonl_files
+from command-center.collectors.file_scanner import scan_jsonl_files
 
 files = scan_jsonl_files()
 print(f"Found {len(files)} JSONL files")
@@ -170,7 +170,7 @@ print(f"Found {len(files)} JSONL files")
 
 ---
 
-### Module: `commandcenter.collectors.jsonl_parser`
+### Module: `command_center.collectors.jsonl_parser`
 
 #### `parse_jsonl_line(line: str, source_file: str) -> Optional[MessageEntry]`
 
@@ -201,7 +201,7 @@ with open("session.jsonl") as f:
 
 ---
 
-### Module: `commandcenter.collectors.deduplication`
+### Module: `command_center.collectors.deduplication`
 
 #### `compute_entry_hash(entry: dict) -> Optional[str]`
 
@@ -221,7 +221,7 @@ hash_value = compute_entry_hash(entry)
 
 ---
 
-### Module: `commandcenter.utils.date_helpers`
+### Module: `command_center.utils.date_helpers`
 
 #### `parse_and_convert_to_local(timestamp_str: str) -> Optional[datetime]`
 
@@ -234,7 +234,7 @@ hash_value = compute_entry_hash(entry)
 
 **Usage:**
 ```python
-from commandcenter.utils.date_helpers import parse_and_convert_to_local
+from command-center.utils.date_helpers import parse_and_convert_to_local
 
 dt_local = parse_and_convert_to_local("2025-11-27T02:09:11.551Z")
 print(dt_local.strftime("%Y-%m-%d %H:%M:%S %Z"))
@@ -276,7 +276,7 @@ date_key = format_date_key(datetime.now())
 
 ---
 
-### Module: `commandcenter.visualization.png_generator`
+### Module: `command_center.visualization.png_generator`
 
 #### `generate_usage_report_png(stats: UsageStats) -> bytes`
 
@@ -289,7 +289,7 @@ date_key = format_date_key(datetime.now())
 
 **Usage:**
 ```python
-from commandcenter.visualization.png_generator import generate_usage_report_png
+from command-center.visualization.png_generator import generate_usage_report_png
 
 stats = query_usage_stats(conn, "2025-01-01", "2025-12-31")
 png_bytes = generate_usage_report_png(stats)
@@ -302,7 +302,7 @@ with open("cc-usage-report-2025-01-01_2025-12-31.png", "wb") as f:
 
 ---
 
-### Module: `commandcenter.visualization.terminal_display`
+### Module: `command_center.visualization.terminal_display`
 
 #### `display_png_in_terminal(png_bytes: bytes)`
 
@@ -323,7 +323,7 @@ with open("cc-usage-report-2025-01-01_2025-12-31.png", "wb") as f:
 
 **Usage:**
 ```python
-from commandcenter.visualization.terminal_display import display_png_in_terminal
+from command-center.visualization.terminal_display import display_png_in_terminal
 
 display_png_in_terminal(png_bytes)
 ```

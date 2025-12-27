@@ -34,7 +34,7 @@
 
 #### Where is Data Stored?
 
-**Database Location:** `~/.claude/db/commandcenter.db`
+**Database Location:** `~/.claude/db/command_center.db`
 
 **File Permissions:** Default (user-only read/write on Unix-like systems)
 
@@ -47,7 +47,7 @@
 **Deletion:**
 ```bash
 # Remove database
-rm ~/.claude/db/commandcenter.db
+rm ~/.claude/db/command_center.db
 
 # Remove PNG outputs
 rm cc-usage-report-*.png
@@ -69,7 +69,7 @@ VACUUM;
 **Recommendation:** Restrict database to user-only access.
 
 ```bash
-chmod 600 ~/.claude/db/commandcenter.db
+chmod 600 ~/.claude/db/command_center.db
 ```
 
 #### 2. Backup Strategy
@@ -78,10 +78,10 @@ chmod 600 ~/.claude/db/commandcenter.db
 
 ```bash
 # Backup database
-cp ~/.claude/db/commandcenter.db ~/backups/commandcenter-$(date +%Y%m%d).db
+cp ~/.claude/db/command_center.db ~/backups/command-center-$(date +%Y%m%d).db
 
 # Encrypt backup
-gpg -e ~/backups/commandcenter-20251227.db
+gpg -e ~/backups/command-center-20251227.db
 ```
 
 #### 3. Multi-User Systems

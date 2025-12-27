@@ -23,28 +23,28 @@ source .venv/bin/activate
 
 ```bash
 # Generate report for current year
-commandcenter --verbose
+command-center --verbose
 
 # Generate report for specific date range
-commandcenter --from 2024-01-01 --to 2024-12-31
+command-center --from 2024-01-01 --to 2024-12-31
 
 # Generate report with compact date format
-commandcenter --from 20250101 --to 20250228
+command-center --from 20250101 --to 20250228
 
 # Show database statistics
-commandcenter --db-stats
+command-center --db-stats
 
 # Force full rescan (ignore file tracking cache)
-commandcenter --force-rescan
+command-center --force-rescan
 
 # Rebuild database from scratch
-commandcenter --rebuild-db
+command-center --rebuild-db
 ```
 
 ### Without Installation
 
 ```bash
-uv run commandcenter --verbose
+uv run command-center --verbose
 ```
 
 ## Architecture
@@ -136,7 +136,7 @@ The tool is optimized for speed on subsequent runs:
 ## Configuration
 
 All configuration is in `config.py`:
-- Database path: `~/.claude/db/commandcenter.db`
+- Database path: `~/.claude/db/command_center.db`
 - Session paths: `~/.claude/sessions/` or `~/.config/claude/sessions/`
 - Canvas size: 1500×1400px
 - Color scheme: Defined in `COLORS` dict
@@ -157,4 +157,4 @@ Key dataclasses in `database/models.py`:
 2. **Always use local time** for aggregations - matches user's working hours
 3. **Recompute aggregates** after any direct `message_entries` modifications
 4. **Use batch inserts** (BATCH_INSERT_SIZE=100) for performance
-5. **Database location** is fixed at `~/.claude/db/commandcenter.db` (not configurable)
+5. **Database location** is fixed at `~/.claude/db/command_center.db` (not configurable)

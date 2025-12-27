@@ -4,9 +4,9 @@ JSONL parsing with UTC to local time conversion
 import json
 from typing import Optional
 
-from commandcenter.database.models import MessageEntry
-from commandcenter.utils.date_helpers import parse_and_convert_to_local, format_datetime_hour, format_date_key
-from commandcenter.collectors.deduplication import compute_entry_hash
+from command_center.database.models import MessageEntry
+from command_center.utils.date_helpers import parse_and_convert_to_local, format_datetime_hour, format_date_key
+from command_center.collectors.deduplication import compute_entry_hash
 
 
 def parse_jsonl_line(line: str, source_file: str) -> Optional[MessageEntry]:

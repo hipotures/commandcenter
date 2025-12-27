@@ -27,7 +27,7 @@ Modern SQLite-based analytics for Claude Code usage with intelligent caching.
 uv tool install -e .
 ```
 
-After this, you can run `commandcenter` from anywhere without activation.
+After this, you can run `command-center` from anywhere without activation.
 
 **Option 2: Local virtual environment**
 
@@ -42,16 +42,16 @@ source .venv/bin/activate
 
 ```bash
 # Generate report for current year
-commandcenter --verbose
+command-center --verbose
 
 # Generate report for specific date range
-commandcenter --from 2024-01-01 --to 2024-12-31
+command-center --from 2024-01-01 --to 2024-12-31
 
 # Generate report with compact date format
-commandcenter --from 20250101 --to 20250131
+command-center --from 20250101 --to 20250131
 
 # Show database statistics
-commandcenter --db-stats
+command-center --db-stats
 ```
 
 **With local venv (`uv sync`):**
@@ -61,13 +61,13 @@ commandcenter --db-stats
 source .venv/bin/activate
 
 # Then run
-commandcenter --verbose
+command-center --verbose
 ```
 
 **Without installation:**
 
 ```bash
-uv run commandcenter --verbose
+uv run command-center --verbose
 ```
 
 ### CLI Options
@@ -84,7 +84,7 @@ uv run commandcenter --verbose
 **First Run**: Imports ALL historical data from all years (~1-2 minutes)
 **Subsequent Runs**: Only processes new/modified files (<5 seconds)
 
-Data stored in `~/.claude/db/commandcenter.db` with hourly aggregation (local time).
+Data stored in `~/.claude/db/command_center.db` with hourly aggregation (local time).
 
 ### Output
 

@@ -5,24 +5,24 @@
 #### Method 1: Global Installation (Recommended)
 
 ```bash
-cd /home/xai/DEV/commandcenter
+cd /home/xai/DEV/command-center
 uv tool install -e .
 ```
 
 **Advantages:**
 - Available system-wide
 - No environment activation needed
-- Command: `commandcenter`
+- Command: `command-center`
 
 **Location:** Installed in `~/.local/share/uv/tools/`
 
 #### Method 2: Virtual Environment
 
 ```bash
-cd /home/xai/DEV/commandcenter
+cd /home/xai/DEV/command-center
 uv sync
 source .venv/bin/activate
-commandcenter --verbose
+command-center --verbose
 ```
 
 **Advantages:**
@@ -35,8 +35,8 @@ commandcenter --verbose
 #### Method 3: Direct Execution
 
 ```bash
-cd /home/xai/DEV/commandcenter
-uv run commandcenter --verbose
+cd /home/xai/DEV/command-center
+uv run command-center --verbose
 ```
 
 **Advantages:**
@@ -48,19 +48,19 @@ uv run commandcenter --verbose
 
 ### Configuration
 
-**File:** `/home/xai/DEV/commandcenter/src/commandcenter/config.py`
+**File:** `/home/xai/DEV/command-center/src/command_center/config.py`
 
 #### Environment Variables
 
 **None.** All configuration is hardcoded in `config.py`.
 
-**Future Enhancement:** Support `~/.config/commandcenter/config.toml` for user overrides.
+**Future Enhancement:** Support `~/.config/command-center/config.toml` for user overrides.
 
 #### Configurable Constants
 
 ```python
 # Database location
-DB_PATH = os.path.join(HOME, ".claude", "db", "commandcenter.db")
+DB_PATH = os.path.join(HOME, ".claude", "db", "command_center.db")
 
 # Claude directories to scan
 CLAUDE_DIRS = [
@@ -89,7 +89,7 @@ CLAUDE_DIRS.append("/mnt/backup/.claude")
 ### CLI Usage
 
 ```bash
-commandcenter [OPTIONS]
+command-center [OPTIONS]
 ```
 
 **Options:**
@@ -107,19 +107,19 @@ commandcenter [OPTIONS]
 
 ```bash
 # Generate report for current year (verbose)
-commandcenter --verbose
+command-center --verbose
 
 # Generate report for specific date range
-commandcenter --from 2024-01-01 --to 2024-12-31
+command-center --from 2024-01-01 --to 2024-12-31
 
 # Force full rescan (useful if files were modified externally)
-commandcenter --force-rescan
+command-center --force-rescan
 
 # Rebuild database from scratch
-commandcenter --rebuild-db --verbose
+command-center --rebuild-db --verbose
 
 # Show database statistics
-commandcenter --db-stats
+command-center --db-stats
 ```
 
 ### System Requirements
@@ -185,7 +185,7 @@ uv tool install -e .
 **Solution:**
 ```bash
 # Find process
-lsof ~/.claude/db/commandcenter.db
+lsof ~/.claude/db/command_center.db
 
 # Kill process or wait for completion
 ```

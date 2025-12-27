@@ -5,14 +5,14 @@ import os
 import sqlite3
 from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
 
-from commandcenter.collectors.file_scanner import scan_jsonl_files
-from commandcenter.collectors.jsonl_parser import parse_jsonl_line
-from commandcenter.database.queries import (
+from command_center.collectors.file_scanner import scan_jsonl_files
+from command_center.collectors.jsonl_parser import parse_jsonl_line
+from command_center.database.queries import (
     get_file_tracks, insert_message_entries, update_file_track,
     recompute_hourly_aggregates, recompute_model_aggregates
 )
-from commandcenter.cache.file_tracker import detect_file_changes
-from commandcenter.utils.date_helpers import format_datetime_hour, parse_and_convert_to_local
+from command_center.cache.file_tracker import detect_file_changes
+from command_center.utils.date_helpers import format_datetime_hour, parse_and_convert_to_local
 
 
 def perform_incremental_update(conn: sqlite3.Connection,

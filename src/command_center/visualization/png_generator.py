@@ -14,9 +14,9 @@ except ImportError:
     print("Error: Pillow not installed. Run: pip install pillow")
     raise
 
-from commandcenter.config import COLORS, CANVAS_WIDTH, CANVAS_HEIGHT, FONT_PATHS
-from commandcenter.database.models import UsageStats
-from commandcenter.aggregators.streak_calculator import calculate_streaks
+from command_center.config import COLORS, CANVAS_WIDTH, CANVAS_HEIGHT, FONT_PATHS
+from command_center.database.models import UsageStats
+from command_center.aggregators.streak_calculator import calculate_streaks
 
 
 def load_font(size: int):

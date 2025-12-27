@@ -20,16 +20,16 @@ No activity found for 2025
 find ~/.claude/projects -name "*.jsonl" -ls
 
 # Check database
-commandcenter --db-stats
+command-center --db-stats
 ```
 
 **Solution:**
 ```bash
 # Force rescan
-commandcenter --force-rescan --verbose
+command-center --force-rescan --verbose
 
 # Check specific year
-commandcenter --year 2024
+command-center --year 2024
 ```
 
 #### 2. Database Integrity Check Failed
@@ -48,10 +48,10 @@ Run with --rebuild-db to fix
 **Solution:**
 ```bash
 # Backup current database
-cp ~/.claude/db/commandcenter.db ~/commandcenter-backup.db
+cp ~/.claude/db/command_center.db ~/command-center-backup.db
 
 # Rebuild from scratch
-commandcenter --rebuild-db --verbose
+command-center --rebuild-db --verbose
 ```
 
 #### 3. PNG Not Displaying in Terminal
@@ -90,16 +90,16 @@ open cc-usage-report-*.png
 **Diagnosis:**
 ```bash
 # Run with verbose mode
-commandcenter --verbose
+command-center --verbose
 
 # Check database size
-ls -lh ~/.claude/db/commandcenter.db
+ls -lh ~/.claude/db/command_center.db
 ```
 
 **Solution:**
 ```bash
 # Rebuild database to optimize
-commandcenter --rebuild-db
+command-center --rebuild-db
 
 # Check disk health
 df -h
@@ -131,7 +131,7 @@ BATCH_INSERT_SIZE = 50  # Instead of 100
 #### Enable Verbose Mode
 
 ```bash
-commandcenter --verbose
+command-center --verbose
 ```
 
 **Output:**
@@ -142,7 +142,7 @@ commandcenter --verbose
 #### Check Database Statistics
 
 ```bash
-commandcenter --db-stats
+command-center --db-stats
 ```
 
 **Output:**
@@ -160,7 +160,7 @@ commandcenter --db-stats
 #### Inspect Database Manually
 
 ```bash
-sqlite3 ~/.claude/db/commandcenter.db
+sqlite3 ~/.claude/db/command_center.db
 ```
 
 ```sql
@@ -203,19 +203,19 @@ with open("session.jsonl") as f:
 
 ```bash
 # Time full run
-time commandcenter --rebuild-db --verbose
+time command-center --rebuild-db --verbose
 
 # Time incremental update
-time commandcenter --verbose
+time command-center --verbose
 
 # Time query only
-time commandcenter --year 2025
+time command-center --year 2025
 ```
 
 #### Profile with cProfile
 
 ```bash
-python -m cProfile -o profile.stats -m commandcenter --verbose
+python -m cProfile -o profile.stats -m command-center --verbose
 ```
 
 ```python

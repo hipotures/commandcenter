@@ -2,7 +2,7 @@
 
 ### PNG Generation Architecture
 
-**Module:** `/home/xai/DEV/commandcenter/src/commandcenter/visualization/png_generator.py`
+**Module:** `/home/xai/DEV/command-center/src/command_center/visualization/png_generator.py`
 
 **Technology:** Pillow (PIL) - Python Imaging Library
 
@@ -205,14 +205,14 @@ hit_rate = (cache_read / (cache_read + cache_write) * 100) if (cache_read + cach
 
 **Streak Calculation:**
 ```python
-from commandcenter.aggregators.streak_calculator import calculate_streaks
+from command-center.aggregators.streak_calculator import calculate_streaks
 
 max_streak, current_streak = calculate_streaks(stats.daily_activity)
 ```
 
 ### Terminal Display Protocols
 
-**Module:** `/home/xai/DEV/commandcenter/src/commandcenter/visualization/terminal_display.py`
+**Module:** `/home/xai/DEV/command-center/src/command_center/visualization/terminal_display.py`
 
 **Supported Terminals:**
 - Kitty (Kitty Graphics Protocol)

@@ -142,7 +142,7 @@ def recompute_hourly_aggregates(conn, datetime_hours):
 
 **Usage:**
 ```bash
-commandcenter --force-rescan
+command-center --force-rescan
 ```
 
 **Behavior:**

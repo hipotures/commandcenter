@@ -63,8 +63,8 @@ Command Center follows a classic ETL (Extract, Transform, Load) architecture wit
 ### Directory Structure
 
 ```
-commandcenter/
-├── src/commandcenter/
+command-center/
+├── src/command_center/
 │   ├── __main__.py              # Entry point & CLI
 │   ├── config.py                # Configuration constants
 │   ├── database/
