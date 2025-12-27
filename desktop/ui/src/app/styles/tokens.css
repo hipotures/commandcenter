@@ -1,0 +1,152 @@
+/**
+ * Design tokens - CSS Variables for light and dark mode
+ *
+ * Based on Command Center color palette from config.py
+ */
+
+:root {
+  /* Light mode (default) */
+  --color-background: #F7F1E9;
+  --color-surface: #FFF9F2;
+  --color-surface-hover: #F9F3EB;
+  --color-border: #E8D7C6;
+  --color-text-primary: #2B1D13;
+  --color-text-secondary: #4A3426;
+  --color-text-tertiary: #6B5142;
+  --color-text-muted: #8A7264;
+  --color-accent-primary: #D97757;
+  --color-accent-hover: #C96647;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+
+  /* Heatmap colors (7 levels) */
+  --color-heatmap-0: #F0E6DC;
+  --color-heatmap-1: #E6D6C8;
+  --color-heatmap-2: #D9C1AE;
+  --color-heatmap-3: #CBA590;
+  --color-heatmap-4: #BC8873;
+  --color-heatmap-5: #AE6E5B;
+  --color-heatmap-6: #9A5647;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(43, 29, 19, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(43, 29, 19, 0.1), 0 2px 4px -2px rgba(43, 29, 19, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(43, 29, 19, 0.1), 0 4px 6px -4px rgba(43, 29, 19, 0.1);
+  --shadow-hover: 0 6px 8px -2px rgba(43, 29, 19, 0.12), 0 4px 6px -2px rgba(43, 29, 19, 0.08);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Fonts */
+  --font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-family-mono: 'DM Mono', ui-monospace, 'SF Mono', Monaco, monospace;
+
+  /* Font sizes */
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 32px;
+
+  /* Font weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line heights */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* Z-index layers */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-modal: 1030;
+  --z-popover: 1040;
+  --z-tooltip: 1050;
+}
+
+/* Dark mode */
+[data-theme='dark'] {
+  --color-background: #1A1512;
+  --color-surface: #252019;
+  --color-surface-hover: #2D2621;
+  --color-border: #3D3530;
+  --color-text-primary: #F7F1E9;
+  --color-text-secondary: #D9CFC4;
+  --color-text-tertiary: #BFB3A8;
+  --color-text-muted: #8A7F75;
+  --color-accent-primary: #E88B6A;
+  --color-accent-hover: #F29A7A;
+  --color-success: #34D399;
+  --color-warning: #FBBF24;
+  --color-error: #F87171;
+
+  /* Dark heatmap colors */
+  --color-heatmap-0: #252019;
+  --color-heatmap-1: #3D3530;
+  --color-heatmap-2: #5A4D44;
+  --color-heatmap-3: #7A6555;
+  --color-heatmap-4: #9A7D66;
+  --color-heatmap-5: #BA9577;
+  --color-heatmap-6: #DAA888;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 6px 8px -2px rgba(0, 0, 0, 0.35), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
+}
+
+/* Utility classes */
+.text-primary {
+  color: var(--color-text-primary);
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.text-accent {
+  color: var(--color-accent-primary);
+}
+
+.bg-surface {
+  background-color: var(--color-surface);
+}
+
+.border-default {
+  border: 1px solid var(--color-border);
+}
+
+.shadow-card {
+  box-shadow: var(--shadow-md);
+}
+
+.transition-default {
+  transition: all var(--transition-normal);
+}
