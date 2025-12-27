@@ -509,8 +509,9 @@ const ModelDistribution = ({ data }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ACTIVITY TIMELINE CHART
 // ═══════════════════════════════════════════════════════════════════════════════
-const ActivityTimeline = ({ data, granularity, limitResets = [], showResets = true, onToggleResets }: any) => {
+const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
   const [metric, setMetric] = useState('messages');
+  const [selectedLimitTypes, setSelectedLimitTypes] = useState<Set<string>>(new Set());
 
   const metrics = [
     { key: 'messages', label: 'Messages', color: tokens.colors.accentPrimary },
@@ -524,6 +525,18 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], showResets = tr
     { type: 'spending_cap', color: '#DC2626', label: 'Spending Cap' },
     { type: 'context', color: '#7C3AED', label: 'Context Limit' },
   ];
+
+  const toggleLimitType = (type: string) => {
+    setSelectedLimitTypes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(type)) {
+        newSet.delete(type);
+      } else {
+        newSet.add(type);
+      }
+      return newSet;
+    });
+  };
 
   // Format period label based on granularity
   const formatPeriodLabel = (period: string) => {
@@ -575,54 +588,27 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], showResets = tr
           Activity Timeline
         </div>
 
-        {/* Metric selector & Limit resets checkbox */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {/* Limit resets checkbox */}
-          <label style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '12px',
-            fontWeight: '500',
-            color: tokens.colors.textMuted,
-            cursor: 'pointer',
-            userSelect: 'none',
-          }}>
-            <input
-              type="checkbox"
-              checked={showResets}
-              onChange={(e) => onToggleResets?.(e.target.checked)}
+        {/* Metric selector */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {metrics.map(m => (
+            <button
+              key={m.key}
+              onClick={() => setMetric(m.key)}
               style={{
+                padding: '6px 12px',
+                borderRadius: '20px',
+                border: 'none',
+                fontSize: '12px',
+                fontWeight: '600',
                 cursor: 'pointer',
-                width: '14px',
-                height: '14px',
+                transition: 'all 0.2s ease',
+                backgroundColor: metric === m.key ? tokens.colors.accentPrimary : 'transparent',
+                color: metric === m.key ? tokens.colors.surface : tokens.colors.textMuted,
               }}
-            />
-            Show limit resets
-          </label>
-
-          {/* Metric buttons */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {metrics.map(m => (
-              <button
-                key={m.key}
-                onClick={() => setMetric(m.key)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '20px',
-                  border: 'none',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  backgroundColor: metric === m.key ? tokens.colors.accentPrimary : 'transparent',
-                  color: metric === m.key ? tokens.colors.surface : tokens.colors.textMuted,
-                }}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -676,7 +662,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], showResets = tr
             />
 
             {/* Limit reset lines */}
-            {showResets && limitResets.map((reset: any, idx: number) => {
+            {limitResets.filter((reset: any) => selectedLimitTypes.has(reset.limit_type)).map((reset: any, idx: number) => {
               // Parse reset timestamp to match granularity format
               const resetDate = new Date(reset.reset_at);
               let xValue = '';
@@ -722,68 +708,83 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], showResets = tr
         </div>
 
         {/* Legend */}
-        {showResets && (
+        <div style={{
+          width: '160px',
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+        }}>
           <div style={{
-            width: '140px',
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
+            fontSize: '11px',
+            fontWeight: '600',
+            color: tokens.colors.textMuted,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            marginBottom: '4px',
           }}>
-            <div style={{
-              fontSize: '11px',
-              fontWeight: '600',
-              color: tokens.colors.textMuted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              marginBottom: '4px',
-            }}>
-              Limit Types
-            </div>
-            {limitTypes.map(limit => {
-              // Check if this limit type exists in current data
-              const hasData = limitResets.some((r: any) => r.limit_type === limit.type);
-              return (
-                <div
-                  key={limit.type}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    background: tokens.colors.background,
-                    opacity: hasData ? 1 : 0.4,
-                  }}
-                >
-                  <div style={{
-                    width: '20px',
-                    height: '2px',
-                    background: limit.color,
-                    borderRadius: '1px',
-                    position: 'relative',
-                  }}>
-                    <div style={{
-                      position: 'absolute',
-                      top: '-1px',
-                      left: 0,
-                      right: 0,
-                      height: '4px',
-                      background: `repeating-linear-gradient(90deg, ${limit.color} 0px, ${limit.color} 5px, transparent 5px, transparent 10px)`,
-                    }} />
-                  </div>
-                  <span style={{
-                    fontSize: '11px',
-                    color: tokens.colors.textSecondary,
-                    fontWeight: '500',
-                  }}>
-                    {limit.label}
-                  </span>
-                </div>
-              );
-            })}
+            Limit Types
           </div>
-        )}
+          {limitTypes.map(limit => {
+            // Check if this limit type exists in current data
+            const hasData = limitResets.some((r: any) => r.limit_type === limit.type);
+            const isSelected = selectedLimitTypes.has(limit.type);
+            return (
+              <label
+                key={limit.type}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  background: tokens.colors.background,
+                  opacity: hasData ? 1 : 0.4,
+                  cursor: hasData ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => hasData && toggleLimitType(limit.type)}
+                  disabled={!hasData}
+                  style={{
+                    cursor: hasData ? 'pointer' : 'not-allowed',
+                    width: '14px',
+                    height: '14px',
+                    flexShrink: 0,
+                  }}
+                />
+                <div style={{
+                  width: '20px',
+                  height: '2px',
+                  background: limit.color,
+                  borderRadius: '1px',
+                  position: 'relative',
+                  flexShrink: 0,
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: '-1px',
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    background: `repeating-linear-gradient(90deg, ${limit.color} 0px, ${limit.color} 5px, transparent 5px, transparent 10px)`,
+                  }} />
+                </div>
+                <span style={{
+                  fontSize: '11px',
+                  color: tokens.colors.textSecondary,
+                  fontWeight: '500',
+                  userSelect: 'none',
+                }}>
+                  {limit.label}
+                </span>
+              </label>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -1235,7 +1236,6 @@ function DashboardContent() {
   const [tempFrom, setTempFrom] = useState(defaultFrom);
   const [tempTo, setTempTo] = useState(defaultTo);
   const [showPicker, setShowPicker] = useState(false);
-  const [showLimitResets, setShowLimitResets] = useState(true);
   const [shouldRefresh, setShouldRefresh] = useState(false);
 
   // Auto-select granularity based on date range
@@ -1263,7 +1263,7 @@ function DashboardContent() {
   const { data: limitResets } = useLimitResets(
     dateRange.from,
     dateRange.to,
-    showLimitResets
+    true // Always fetch limit resets data
   );
 
   // Handle refresh button click
@@ -1925,8 +1925,6 @@ function DashboardContent() {
             data={data.timelineData}
             granularity={granularity}
             limitResets={limitResets || []}
-            showResets={showLimitResets}
-            onToggleResets={setShowLimitResets}
           />
         </div>
 
