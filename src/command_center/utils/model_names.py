@@ -24,7 +24,7 @@ def format_model_name(model: str | None) -> str:
     display_name = model.replace("claude-", "")
 
     # Remove date suffixes
-    date_suffixes = ["-20250514", "-20250929", "-20250805", "-20251101", "-20241022"]
+    date_suffixes = ["-20250514", "-20250929", "-20250805", "-20251101", "-20241022", "-20251001"]
     for suffix in date_suffixes:
         display_name = display_name.replace(suffix, "")
 
@@ -38,8 +38,9 @@ def format_model_name(model: str | None) -> str:
         ("haiku-4-5", "Haiku 4.5"),
         ("haiku-4", "Haiku 4"),
         ("haiku-3-5", "Haiku 3.5"),
-        ("3-5-sonnet", "3.5 Sonnet"),
-        ("3-opus", "3 Opus"),
+        ("3-5-sonnet", "Sonnet 3.5"),
+        ("3-5-haiku", "Haiku 3.5"),
+        ("3-opus", "Opus 3"),
     ]
 
     for old, new in replacements:

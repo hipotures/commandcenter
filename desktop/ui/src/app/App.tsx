@@ -694,6 +694,86 @@ const HourlyPatterns = ({ data }: any) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// DAILY PATTERNS CHART
+// ═══════════════════════════════════════════════════════════════════════════════
+const DailyPatterns = ({ data }: any) => {
+  const peakDay = data.reduce((max: any, curr: any) => curr.activity > max.activity ? curr : max, data[0]);
+
+  return (
+    <div style={{
+      background: tokens.colors.surface,
+      border: `1px solid ${tokens.colors.surfaceBorder}`,
+      borderRadius: '16px',
+      padding: '24px',
+      boxShadow: tokens.shadows.md,
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginBottom: '20px',
+        color: tokens.colors.textPrimary,
+        fontSize: '16px',
+        fontWeight: '600',
+      }}>
+        <Calendar size={20} style={{ color: tokens.colors.accentPrimary }} />
+        Daily Patterns
+      </div>
+
+      <div style={{ height: '200px' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} vertical={false} />
+            <XAxis
+              dataKey="day"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
+            />
+            <Tooltip
+              contentStyle={{
+                background: tokens.colors.textPrimary,
+                border: 'none',
+                borderRadius: '8px',
+                boxShadow: tokens.shadows.lg,
+              }}
+              labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
+              itemStyle={{ color: tokens.colors.heatmap[2] }}
+              formatter={(val) => [val + ' messages', 'Activity']}
+            />
+            <Bar
+              dataKey="activity"
+              fill={tokens.colors.accentPrimary}
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginTop: '16px',
+        padding: '12px',
+        background: `${tokens.colors.accentPrimary}10`,
+        borderRadius: '8px',
+      }}>
+        <Zap size={16} style={{ color: tokens.colors.accentPrimary }} />
+        <span style={{ fontSize: '13px', color: tokens.colors.textSecondary }}>
+          Most active day: <strong>{peakDay.day}</strong> ({peakDay.activity} avg messages)
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CACHE EFFICIENCY COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
@@ -1016,6 +1096,31 @@ function DashboardContent() {
       hour: h.hour.toString().padStart(2, '0') + ':00',
       activity: h.messages,
     })),
+    dailyData: (() => {
+      // Aggregate daily_activity by day of week
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayStats: { [key: number]: { count: number; messages: number } } = {};
+
+      // Initialize all days
+      for (let i = 0; i < 7; i++) {
+        dayStats[i] = { count: 0, messages: 0 };
+      }
+
+      // Aggregate by day of week
+      Object.entries(apiData.daily_activity).forEach(([date, messages]: [string, any]) => {
+        const dayOfWeek = new Date(date).getDay();
+        dayStats[dayOfWeek].count++;
+        dayStats[dayOfWeek].messages += messages;
+      });
+
+      // Calculate average and format for chart (Monday first)
+      return [1, 2, 3, 4, 5, 6, 0].map(dayIndex => ({
+        day: dayNames[dayIndex],
+        activity: dayStats[dayIndex].count > 0
+          ? Math.round(dayStats[dayIndex].messages / dayStats[dayIndex].count)
+          : 0,
+      }));
+    })(),
     modelData: apiData.model_distribution.map((m: any) => ({
       model: m.model,
       displayName: m.display_name,
@@ -1553,9 +1658,15 @@ function DashboardContent() {
           />
         </div>
 
-        {/* Hourly Patterns */}
-        <div style={{ marginBottom: '32px' }}>
+        {/* Hourly & Daily Patterns */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '20px',
+          marginBottom: '32px',
+        }}>
           <HourlyPatterns data={data.hourlyData} />
+          <DailyPatterns data={data.dailyData} />
         </div>
         
         {/* Sessions Table */}
