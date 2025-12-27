@@ -127,6 +127,27 @@ pub async fn get_session_details(session_id: String) -> Result<Value, String> {
     call_python_api(&["session", "--id", &session_id])
 }
 
+/// Get limit reset events for a date range.
+///
+/// # Arguments
+///
+/// * `from` - Start date (YYYY-MM-DD)
+/// * `to` - End date (YYYY-MM-DD)
+///
+/// # Returns
+///
+/// JSON array containing limit reset events with:
+/// - limit_type: type of limit ('5-hour', 'session', 'spending_cap', 'context')
+/// - reset_at: ISO timestamp when limit resets
+/// - reset_text: original reset text (e.g., "resets 12am")
+/// - summary: full summary text
+/// - year: year of the event
+/// - date: date of the event (YYYY-MM-DD)
+#[tauri::command]
+pub async fn get_limit_resets(from: String, to: String) -> Result<Value, String> {
+    call_python_api(&["limits", "--from", &from, "--to", &to])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

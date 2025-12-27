@@ -28,6 +28,7 @@ from command_center.database.queries import (
     query_day_details,
     query_model_details,
     query_session_details,
+    get_limit_events,
 )
 from command_center.cache.incremental_update import perform_incremental_update
 from command_center.aggregators.streak_calculator import calculate_streaks
@@ -79,7 +80,7 @@ def get_dashboard_bundle(
     date_from: str,
     date_to: str,
     refresh: bool,
-    granularity: Literal["month", "week", "day"]
+    granularity: Literal["month", "week", "day", "hour"]
 ) -> dict:
     """
     Generate complete dashboard JSON bundle.
@@ -88,7 +89,7 @@ def get_dashboard_bundle(
         date_from: Start date (YYYY-MM-DD)
         date_to: End date (YYYY-MM-DD)
         refresh: If True, perform incremental update before querying
-        granularity: Timeline grouping - 'month', 'week', or 'day'
+        granularity: Timeline grouping - 'month', 'week', 'day', or 'hour'
 
     Returns:
         Complete dashboard data bundle as dict
@@ -206,6 +207,22 @@ def get_session_details(session_id: str) -> dict:
         return query_session_details(conn, session_id)
 
 
+def get_limit_resets(date_from: str, date_to: str) -> list[dict]:
+    """
+    Get limit reset events for a date range.
+
+    Args:
+        date_from: Start date (YYYY-MM-DD)
+        date_to: End date (YYYY-MM-DD)
+
+    Returns:
+        List of limit reset events with timestamps
+    """
+    with get_db_connection() as conn:
+        init_database(conn)
+        return get_limit_events(conn, date_from, date_to)
+
+
 def main():
     """CLI entry point for Tauri API."""
     parser = argparse.ArgumentParser(
@@ -233,7 +250,7 @@ def main():
     )
     dash_parser.add_argument(
         "--granularity", default="month",
-        choices=["month", "week", "day"],
+        choices=["month", "week", "day", "hour"],
         help="Timeline granularity"
     )
 
@@ -275,6 +292,20 @@ def main():
         help="Session identifier"
     )
 
+    # limits subcommand
+    limits_parser = subparsers.add_parser(
+        "limits",
+        help="Get limit reset events"
+    )
+    limits_parser.add_argument(
+        "--from", dest="date_from", required=True,
+        help="Start date (YYYY-MM-DD)"
+    )
+    limits_parser.add_argument(
+        "--to", dest="date_to", required=True,
+        help="End date (YYYY-MM-DD)"
+    )
+
     args = parser.parse_args()
 
     try:
@@ -291,6 +322,8 @@ def main():
             result = get_model_details(args.model, args.date_from, args.date_to)
         elif args.command == "session":
             result = get_session_details(args.session_id)
+        elif args.command == "limits":
+            result = get_limit_resets(args.date_from, args.date_to)
         else:
             result = {"error": f"Unknown command: {args.command}"}
 

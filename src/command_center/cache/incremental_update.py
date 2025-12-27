@@ -7,8 +7,9 @@ from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
 
 from command_center.collectors.file_scanner import scan_jsonl_files
 from command_center.collectors.jsonl_parser import parse_jsonl_line
+from command_center.collectors.limit_parser import parse_limit_event, complete_limit_event
 from command_center.database.queries import (
-    get_file_tracks, insert_message_entries, update_file_track,
+    get_file_tracks, insert_message_entries, insert_limit_events, update_file_track,
     recompute_hourly_aggregates, recompute_model_aggregates
 )
 from command_center.cache.file_tracker import detect_file_changes
@@ -97,6 +98,8 @@ def process_file(conn: sqlite3.Connection, file_path: str,
     """
     Process a single .jsonl file.
 
+    Collects both message entries and limit events from the file.
+
     Args:
         conn: Database connection
         file_path: Path to .jsonl file
@@ -106,12 +109,26 @@ def process_file(conn: sqlite3.Connection, file_path: str,
     Returns:
         Number of valid entries processed
     """
+    import json
+
     entries = []
+    all_lines = []  # Store all parsed lines for limit processing
     entry_count = 0
 
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
+                line_stripped = line.strip()
+                if not line_stripped:
+                    continue
+
+                try:
+                    data = json.loads(line_stripped)
+                    all_lines.append(data)
+                except:
+                    continue
+
+                # Try to parse as message entry
                 entry = parse_jsonl_line(line, file_path)
                 if entry:
                     entries.append(entry)
@@ -127,9 +144,61 @@ def process_file(conn: sqlite3.Connection, file_path: str,
         # File read error - skip
         return 0
 
-    # Insert entries
+    # Insert message entries
     if entries:
         insert_message_entries(conn, entries)
+
+    # Process limit events from summary entries OR assistant error messages
+    completed_limits = []
+
+    for i, data in enumerate(all_lines):
+        # Check if this is a limit event (old summary format OR new error format)
+        is_old_format = data.get('type') == 'summary'
+        is_new_format = (data.get('type') == 'assistant' and data.get('error') == 'rate_limit')
+
+        if is_old_format or is_new_format:
+            limit_event = parse_limit_event(json.dumps(data), file_path)
+            if limit_event:
+                # For new format, parse_limit_event already completed the event
+                # (timestamp is in the same entry)
+                if is_new_format and limit_event.occurred_at:
+                    # Event already completed
+                    completed_limits.append(limit_event)
+                    continue
+
+                # For old format, find the NEXT message entry with timestamp
+                timestamp = None
+                session_id = None
+
+                for j in range(i + 1, min(i + 10, len(all_lines))):
+                    next_data = all_lines[j]
+                    if next_data.get('timestamp'):
+                        timestamp = next_data.get('timestamp')
+                        session_id = next_data.get('sessionId')
+                        break
+
+                # If no next entry, use previous entry
+                if not timestamp:
+                    for j in range(max(0, i - 10), i):
+                        prev_data = all_lines[j]
+                        if prev_data.get('timestamp'):
+                            timestamp = prev_data.get('timestamp')
+                            session_id = prev_data.get('sessionId')
+
+                if timestamp:
+                    try:
+                        completed = complete_limit_event(
+                            limit_event,
+                            timestamp,
+                            session_id
+                        )
+                        completed_limits.append(completed)
+                    except Exception as e:
+                        # Skip invalid limit events
+                        pass
+
+    if completed_limits:
+        insert_limit_events(conn, completed_limits)
 
     # Update file tracking
     try:

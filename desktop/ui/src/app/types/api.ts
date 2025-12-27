@@ -4,7 +4,7 @@
  * These types match the JSON contract from Python tauri_api module.
  */
 
-export type Granularity = 'month' | 'week' | 'day';
+export type Granularity = 'month' | 'week' | 'day' | 'hour';
 
 export interface DateRange {
   from: string;  // YYYY-MM-DD
@@ -169,6 +169,16 @@ export interface SessionDetails {
     cache_write: number;
     cost: number;
   }>;
+}
+
+// Limit events
+export interface LimitEvent {
+  limit_type: '5-hour' | 'session' | 'spending_cap' | 'context';
+  reset_at: string;  // ISO timestamp kiedy następuje reset
+  reset_text: string | null;
+  summary: string | null;
+  year: number;
+  date: string;  // YYYY-MM-DD
 }
 
 // Error response

@@ -5,7 +5,7 @@ import sqlite3
 from typing import Optional, Literal
 from datetime import datetime
 
-from command_center.database.models import MessageEntry, UsageStats
+from command_center.database.models import MessageEntry, UsageStats, LimitEvent
 from command_center.config import BATCH_INSERT_SIZE
 from command_center.utils.model_names import format_model_name
 
@@ -41,6 +41,40 @@ def insert_message_entries(conn: sqlite3.Connection, entries: list[MessageEntry]
              request_id, message_id, model, cost_usd, input_tokens, output_tokens,
              cache_read_tokens, cache_write_tokens, total_tokens, source_file)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, rows)
+
+    conn.commit()
+
+
+def insert_limit_events(conn: sqlite3.Connection, events: list[LimitEvent]):
+    """
+    Batch insert limit events into database.
+
+    Uses INSERT OR IGNORE for idempotent operation (deduplication by leaf_uuid).
+    """
+    if not events:
+        return
+
+    cursor = conn.cursor()
+
+    # Process in batches
+    for i in range(0, len(events), BATCH_INSERT_SIZE):
+        batch = events[i:i + BATCH_INSERT_SIZE]
+
+        rows = [
+            (
+                e.leaf_uuid, e.limit_type, e.occurred_at, e.occurred_at_local,
+                e.year, e.date, e.hour, e.reset_at_local, e.reset_text,
+                e.session_id, e.summary_text, e.source_file
+            )
+            for e in batch
+        ]
+
+        cursor.executemany("""
+            INSERT OR IGNORE INTO limit_events
+            (leaf_uuid, limit_type, occurred_at, occurred_at_local, year, date,
+             hour, reset_at_local, reset_text, session_id, summary_text, source_file)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, rows)
 
     conn.commit()
@@ -251,16 +285,16 @@ def query_timeline_data(
     conn: sqlite3.Connection,
     date_from: str,
     date_to: str,
-    granularity: Literal["month", "week", "day"]
+    granularity: Literal["month", "week", "day", "hour"]
 ) -> list[dict]:
     """
-    Query timeline data grouped by month/week/day.
+    Query timeline data grouped by month/week/day/hour.
 
     Args:
         conn: Database connection
         date_from: Start date (YYYY-MM-DD)
         date_to: End date (YYYY-MM-DD)
-        granularity: Grouping level - 'month', 'week', or 'day'
+        granularity: Grouping level - 'month', 'week', 'day', or 'hour'
 
     Returns:
         List of dicts with period, messages, tokens, input_tokens, output_tokens, cost
@@ -268,15 +302,21 @@ def query_timeline_data(
     cursor = conn.cursor()
 
     if granularity == "month":
-        group_expr = "SUBSTR(date, 1, 7)"  # YYYY-MM
+        group_expr_agg = "SUBSTR(date, 1, 7)"  # YYYY-MM
+        group_expr_msg = "SUBSTR(date, 1, 7)"
     elif granularity == "week":
-        group_expr = "STRFTIME('%Y-W%W', date)"
+        group_expr_agg = "STRFTIME('%Y-W%W', date)"
+        group_expr_msg = "STRFTIME('%Y-W%W', date)"
+    elif granularity == "hour":
+        group_expr_agg = "date || ' ' || PRINTF('%02d', hour)"  # YYYY-MM-DD HH
+        group_expr_msg = "date || ' ' || STRFTIME('%H', timestamp_local)"  # Extract hour from timestamp
     else:  # day
-        group_expr = "date"
+        group_expr_agg = "date"
+        group_expr_msg = "date"
 
     cursor.execute(f"""
         SELECT
-            {group_expr} as period,
+            {group_expr_agg} as period,
             SUM(message_count) as messages,
             SUM(total_tokens) as tokens,
             SUM(total_cost_usd) as cost
@@ -294,7 +334,7 @@ def query_timeline_data(
     # Now get input/output breakdown
     cursor.execute(f"""
         SELECT
-            {group_expr} as period,
+            {group_expr_msg} as period,
             SUM(input_tokens) as input_tokens,
             SUM(output_tokens) as output_tokens
         FROM message_entries
@@ -832,3 +872,44 @@ def query_session_details(conn: sqlite3.Connection, session_id: str) -> dict:
         },
         "messages": messages
     }
+
+
+def get_limit_events(conn: sqlite3.Connection, date_from: str, date_to: str) -> list[dict]:
+    """
+    Get limit reset events for a date range.
+    
+    Args:
+        conn: Database connection
+        date_from: Start date (YYYY-MM-DD)
+        date_to: End date (YYYY-MM-DD)
+    
+    Returns:
+        List of dicts with limit event data
+    """
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT 
+            limit_type,
+            reset_at_local,
+            reset_text,
+            summary_text,
+            year,
+            date
+        FROM limit_events
+        WHERE date >= ? AND date <= ?
+        ORDER BY reset_at_local
+    """, (date_from, date_to))
+    
+    events = []
+    for row in cursor.fetchall():
+        events.append({
+            "limit_type": row[0],
+            "reset_at": row[1],  # ISO timestamp kiedy następuje reset
+            "reset_text": row[2],
+            "summary": row[3],
+            "year": row[4],
+            "date": row[5]
+        })
+    
+    return events

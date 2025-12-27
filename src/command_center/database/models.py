@@ -76,6 +76,23 @@ class FileStatus:
 
 
 @dataclass
+class LimitEvent:
+    """Session limit event (5-hour limit, spending cap, etc.)"""
+    leaf_uuid: str  # Unique identifier for deduplication
+    limit_type: str  # '5-hour', 'session', 'spending_cap', 'context'
+    occurred_at: str  # ISO 8601 UTC timestamp
+    occurred_at_local: str  # ISO 8601 local timestamp
+    year: int  # Local year
+    date: str  # YYYY-MM-DD local date
+    hour: int  # 0-23 local hour
+    reset_at_local: str  # ISO 8601 local timestamp when limit resets
+    reset_text: Optional[str] = None  # Original text like "resets 12am"
+    session_id: Optional[str] = None
+    summary_text: Optional[str] = None  # Full summary text
+    source_file: str = ""
+
+
+@dataclass
 class UsageStats:
     """Statistics for usage report generation"""
     date_from: str  # YYYY-MM-DD

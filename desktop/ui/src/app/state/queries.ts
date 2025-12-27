@@ -9,6 +9,7 @@ import type {
   ModelDetails,
   SessionDetails,
   Granularity,
+  LimitEvent,
 } from '../types/api';
 
 // Check if running in Tauri
@@ -20,6 +21,7 @@ const ENDPOINT_MAP: Record<string, string> = {
   get_day_details: 'day',
   get_model_details: 'model',
   get_session_details: 'session',
+  get_limit_resets: 'limits',
 };
 
 // API adapter - uses Tauri invoke in desktop, fetch in browser
@@ -104,5 +106,19 @@ export function useSessionDetails(sessionId: string | null) {
       }),
     enabled: !!sessionId,
     staleTime: 300_000, // 5 minutes
+  });
+}
+
+// Limit resets query
+export function useLimitResets(from: string, to: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ['limits', from, to],
+    queryFn: () =>
+      apiCall<LimitEvent[]>('get_limit_resets', {
+        from,
+        to,
+      }),
+    enabled,
+    staleTime: 60_000, // 1 minute
   });
 }

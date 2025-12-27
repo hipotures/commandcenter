@@ -5,7 +5,7 @@ import sqlite3
 from typing import Optional
 
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 def get_schema_version(conn: sqlite3.Connection) -> int:
@@ -159,6 +159,40 @@ def create_model_aggregates_table(conn: sqlite3.Connection):
     conn.commit()
 
 
+def create_limit_events_table(conn: sqlite3.Connection):
+    """Create limit_events table for tracking session limits"""
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS limit_events (
+            leaf_uuid TEXT PRIMARY KEY,
+            limit_type TEXT NOT NULL,
+            occurred_at TEXT NOT NULL,
+            occurred_at_local TEXT NOT NULL,
+            year INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            hour INTEGER NOT NULL,
+            reset_at_local TEXT NOT NULL,
+            reset_text TEXT,
+            session_id TEXT,
+            summary_text TEXT,
+            source_file TEXT NOT NULL
+        )
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_limit_events_year_date
+        ON limit_events(year, date)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_limit_events_type
+        ON limit_events(limit_type, year)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_limit_events_occurred
+        ON limit_events(occurred_at_local)
+    """)
+    conn.commit()
+
+
 def init_database(conn: sqlite3.Connection):
     """
     Initialize database schema.
@@ -176,6 +210,7 @@ def init_database(conn: sqlite3.Connection):
         create_message_entries_table(conn)
         create_hourly_aggregates_table(conn)
         create_model_aggregates_table(conn)
+        create_limit_events_table(conn)
         set_schema_version(conn, CURRENT_SCHEMA_VERSION)
     elif current_version < CURRENT_SCHEMA_VERSION:
         # Run migrations
@@ -191,12 +226,10 @@ def run_migrations(conn: sqlite3.Connection, from_version: int, to_version: int)
         from_version: Current schema version
         to_version: Target schema version
     """
-    # Future migrations will go here
-    # Example:
-    # if from_version < 2 and to_version >= 2:
-    #     migrate_to_v2(conn)
-    #     set_schema_version(conn, 2)
-    pass
+    # Migration to v2: Add limit_events table
+    if from_version < 2 and to_version >= 2:
+        create_limit_events_table(conn)
+        set_schema_version(conn, 2)
 
 
 def check_integrity(conn: sqlite3.Connection) -> bool:

@@ -5,14 +5,14 @@ import 'react-datepicker/dist/react-datepicker.css';
 import './datepicker-custom.css';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import {
   MessageSquare, Users, Coins, Zap, Flame, Database,
   Calendar, TrendingUp, Clock, Cpu, ChevronDown, Download,
   RefreshCw, Settings, Search, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
-import { useDashboard } from './state/queries';
+import { useDashboard, useLimitResets } from './state/queries';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLAUDE CODE DESIGN TOKENS
@@ -509,14 +509,38 @@ const ModelDistribution = ({ data }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ACTIVITY TIMELINE CHART
 // ═══════════════════════════════════════════════════════════════════════════════
-const ActivityTimeline = ({ data }: any) => {
+const ActivityTimeline = ({ data, granularity, limitResets = [], showResets = true, onToggleResets }: any) => {
   const [metric, setMetric] = useState('messages');
-  
+
   const metrics = [
     { key: 'messages', label: 'Messages', color: tokens.colors.accentPrimary },
     { key: 'tokens', label: 'Tokens', color: tokens.colors.heatmap[5] },
     { key: 'cost', label: 'Cost', color: tokens.colors.semanticSuccess },
   ];
+
+  // Format period label based on granularity
+  const formatPeriodLabel = (period: string) => {
+    if (granularity === 'hour') {
+      // 2025-01-15 14 -> 14:00
+      const parts = period.split(' ');
+      if (parts.length === 2) {
+        return `${parts[1].padStart(2, '0')}:00`;
+      }
+      return period;
+    } else if (granularity === 'day') {
+      // 2025-01-15 -> Jan 15
+      const date = new Date(period);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } else if (granularity === 'week') {
+      // 2025-W03 -> W03
+      return period.replace(/^\d{4}-/, '');
+    } else {
+      // 2025-01 -> Jan 2025
+      const [year, month] = period.split('-');
+      const date = new Date(parseInt(year), parseInt(month) - 1);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+    }
+  };
 
   return (
     <div style={{
@@ -526,15 +550,15 @@ const ActivityTimeline = ({ data }: any) => {
       padding: '24px',
       boxShadow: tokens.shadows.md,
     }}>
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
         marginBottom: '20px',
       }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           gap: '8px',
           color: tokens.colors.textPrimary,
           fontSize: '16px',
@@ -543,31 +567,58 @@ const ActivityTimeline = ({ data }: any) => {
           <TrendingUp size={20} style={{ color: tokens.colors.accentPrimary }} />
           Activity Timeline
         </div>
-        
-        {/* Metric selector */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {metrics.map(m => (
-            <button
-              key={m.key}
-              onClick={() => setMetric(m.key)}
+
+        {/* Metric selector & Limit resets checkbox */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {/* Limit resets checkbox */}
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '12px',
+            fontWeight: '500',
+            color: tokens.colors.textMuted,
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}>
+            <input
+              type="checkbox"
+              checked={showResets}
+              onChange={(e) => onToggleResets?.(e.target.checked)}
               style={{
-                padding: '6px 12px',
-                borderRadius: '20px',
-                border: 'none',
-                fontSize: '12px',
-                fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                backgroundColor: metric === m.key ? tokens.colors.accentPrimary : 'transparent',
-                color: metric === m.key ? tokens.colors.surface : tokens.colors.textMuted,
+                width: '14px',
+                height: '14px',
               }}
-            >
-              {m.label}
-            </button>
-          ))}
+            />
+            Show limit resets
+          </label>
+
+          {/* Metric buttons */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {metrics.map(m => (
+              <button
+                key={m.key}
+                onClick={() => setMetric(m.key)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '20px',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  backgroundColor: metric === m.key ? tokens.colors.accentPrimary : 'transparent',
+                  color: metric === m.key ? tokens.colors.surface : tokens.colors.textMuted,
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      
+
       <div style={{ height: '280px' }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -578,13 +629,14 @@ const ActivityTimeline = ({ data }: any) => {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} />
-            <XAxis 
-              dataKey="month" 
+            <XAxis
+              dataKey="period"
               axisLine={false}
               tickLine={false}
               tick={{ fill: tokens.colors.textMuted, fontSize: 12 }}
+              tickFormatter={formatPeriodLabel}
             />
-            <YAxis 
+            <YAxis
               axisLine={false}
               tickLine={false}
               tick={{ fill: tokens.colors.textMuted, fontSize: 12 }}
@@ -599,6 +651,7 @@ const ActivityTimeline = ({ data }: any) => {
               }}
               labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
               itemStyle={{ color: tokens.colors.heatmap[2] }}
+              labelFormatter={formatPeriodLabel}
               formatter={(val: any) => [metric === 'cost' ? formatCurrency(val) : formatNumber(val), metrics.find(m => m.key === metric)?.label]}
             />
             <Area
@@ -610,6 +663,55 @@ const ActivityTimeline = ({ data }: any) => {
               dot={{ fill: tokens.colors.accentPrimary, strokeWidth: 2, r: 4 }}
               activeDot={{ r: 6, fill: tokens.colors.accentPrimary, stroke: tokens.colors.surface, strokeWidth: 2 }}
             />
+
+            {/* Limit reset lines */}
+            {showResets && limitResets.map((reset: any, idx: number) => {
+              // Parse reset timestamp to match granularity format
+              const resetDate = new Date(reset.reset_at);
+              let xValue = '';
+
+              if (granularity === 'hour') {
+                // Format: "2025-01-15 14"
+                const dateStr = resetDate.toISOString().slice(0, 10);
+                const hour = resetDate.getHours();
+                xValue = `${dateStr} ${hour}`;
+              } else if (granularity === 'day') {
+                // Format: "2025-01-15"
+                xValue = resetDate.toISOString().slice(0, 10);
+              } else if (granularity === 'week') {
+                // Format: "2025-W03" (ISO week)
+                const year = resetDate.getFullYear();
+                const onejan = new Date(year, 0, 1);
+                const week = Math.ceil((((resetDate.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
+                xValue = `${year}-W${String(week).padStart(2, '0')}`;
+              } else {
+                // month: Format: "2025-01"
+                xValue = resetDate.toISOString().slice(0, 7);
+              }
+
+              const colors = {
+                '5-hour': '#F59E0B',
+                'session': '#EF4444',
+                'spending_cap': '#DC2626',
+                'context': '#7C3AED'
+              };
+
+              return (
+                <ReferenceLine
+                  key={`limit-${idx}`}
+                  x={xValue}
+                  stroke={colors[reset.limit_type as keyof typeof colors] || '#94A3B8'}
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  label={{
+                    value: reset.limit_type,
+                    position: 'top',
+                    fill: tokens.colors.textMuted,
+                    fontSize: 10,
+                  }}
+                />
+              );
+            })}
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -1063,12 +1165,34 @@ function DashboardContent() {
   const [tempFrom, setTempFrom] = useState(defaultFrom);
   const [tempTo, setTempTo] = useState(defaultTo);
   const [showPicker, setShowPicker] = useState(false);
+  const [showLimitResets, setShowLimitResets] = useState(true);
+
+  // Auto-select granularity based on date range
+  const calculateGranularity = (from: string, to: string): 'hour' | 'day' | 'week' | 'month' => {
+    const startDate = new Date(from);
+    const endDate = new Date(to);
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysDiff <= 2) return 'hour';      // Up to 2 days -> hourly
+    if (daysDiff <= 60) return 'day';      // 3-60 days (2 months) -> daily
+    if (daysDiff <= 180) return 'week';    // 60-180 days (2-6 months) -> weekly
+    return 'month';                         // > 6 months -> monthly
+  };
+
+  const granularity = calculateGranularity(dateRange.from, dateRange.to);
 
   const { data: apiData, isLoading, error } = useDashboard(
     dateRange.from,
     dateRange.to,
     false,
-    'month'
+    granularity
+  );
+
+  // Fetch limit resets
+  const { data: limitResets } = useLimitResets(
+    dateRange.from,
+    dateRange.to,
+    showLimitResets
   );
 
   if (isLoading) {
@@ -1106,8 +1230,8 @@ function DashboardContent() {
   // Transform API data to component format
   const data = {
     dailyActivity: apiData.daily_activity,
-    monthlyData: apiData.timeline.data.map((d: any) => ({
-      month: d.period,
+    timelineData: apiData.timeline.data.map((d: any) => ({
+      period: d.period,
       messages: d.messages,
       tokens: d.tokens,
       cost: d.cost,
@@ -1653,7 +1777,13 @@ function DashboardContent() {
         
         {/* Activity Timeline */}
         <div style={{ marginBottom: '32px' }}>
-          <ActivityTimeline data={data.monthlyData} />
+          <ActivityTimeline
+            data={data.timelineData}
+            granularity={granularity}
+            limitResets={limitResets || []}
+            showResets={showLimitResets}
+            onToggleResets={setShowLimitResets}
+          />
         </div>
 
         {/* Model Distribution & Cache Efficiency */}
