@@ -1124,77 +1124,190 @@ function DashboardContent() {
                     padding: '20px',
                     boxShadow: tokens.shadows.lg,
                     zIndex: 1000,
-                    minWidth: '280px',
+                    width: '320px',
                   }}
                 >
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{
-                      display: 'block',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: tokens.colors.textMuted,
-                      marginBottom: '6px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                    }}>
-                      From
-                    </label>
-                    <DatePicker
-                      selected={new Date(tempFrom)}
-                      onChange={(date: Date | null) => date && setTempFrom(date.toISOString().split('T')[0])}
-                      dateFormat="yyyy-MM-dd"
-                      shouldCloseOnSelect={true}
-                      customInput={
-                        <input
-                          style={{
-                            width: '100%',
-                            padding: '10px 12px',
-                            border: `1px solid ${tokens.colors.surfaceBorder}`,
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            fontFamily: "'DM Mono', monospace",
-                            color: tokens.colors.textPrimary,
-                            background: tokens.colors.background,
-                            cursor: 'pointer',
-                          }}
-                        />
-                      }
-                    />
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: tokens.colors.textMuted,
+                        marginBottom: '6px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}>
+                        From
+                      </label>
+                      <DatePicker
+                        selected={new Date(tempFrom)}
+                        onChange={(date: Date | null) => date && setTempFrom(date.toISOString().split('T')[0])}
+                        dateFormat="yyyy-MM-dd"
+                        shouldCloseOnSelect={true}
+                        customInput={
+                          <input
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              padding: '10px 12px',
+                              border: `1px solid ${tokens.colors.surfaceBorder}`,
+                              borderRadius: '6px',
+                              fontSize: '14px',
+                              fontFamily: "'DM Mono', monospace",
+                              color: tokens.colors.textPrimary,
+                              background: tokens.colors.background,
+                              cursor: 'pointer',
+                            }}
+                          />
+                        }
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: tokens.colors.textMuted,
+                        marginBottom: '6px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}>
+                        To
+                      </label>
+                      <DatePicker
+                        selected={new Date(tempTo)}
+                        onChange={(date: Date | null) => date && setTempTo(date.toISOString().split('T')[0])}
+                        dateFormat="yyyy-MM-dd"
+                        shouldCloseOnSelect={true}
+                        customInput={
+                          <input
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              padding: '10px 12px',
+                              border: `1px solid ${tokens.colors.surfaceBorder}`,
+                              borderRadius: '6px',
+                              fontSize: '14px',
+                              fontFamily: "'DM Mono', monospace",
+                              color: tokens.colors.textPrimary,
+                              background: tokens.colors.background,
+                              cursor: 'pointer',
+                            }}
+                          />
+                        }
+                      />
+                    </div>
                   </div>
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{
-                      display: 'block',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: tokens.colors.textMuted,
-                      marginBottom: '6px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                    }}>
-                      To
-                    </label>
-                    <DatePicker
-                      selected={new Date(tempTo)}
-                      onChange={(date: Date | null) => date && setTempTo(date.toISOString().split('T')[0])}
-                      dateFormat="yyyy-MM-dd"
-                      shouldCloseOnSelect={true}
-                      customInput={
-                        <input
-                          style={{
-                            width: '100%',
-                            padding: '10px 12px',
-                            border: `1px solid ${tokens.colors.surfaceBorder}`,
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            fontFamily: "'DM Mono', monospace",
-                            color: tokens.colors.textPrimary,
-                            background: tokens.colors.background,
-                            cursor: 'pointer',
-                          }}
-                        />
-                      }
-                    />
+
+                  {/* Quick shortcuts */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '6px',
+                    marginBottom: '16px',
+                    paddingTop: '8px',
+                    borderTop: `1px solid ${tokens.colors.surfaceBorder}`,
+                  }}>
+                    <button
+                      onClick={() => {
+                        const today = new Date().toISOString().split('T')[0];
+                        setTempFrom(today);
+                        setTempTo(today);
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: `1px solid ${tokens.colors.surfaceBorder}`,
+                        background: tokens.colors.background,
+                        color: tokens.colors.textSecondary,
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = tokens.colors.accentPrimary;
+                        e.currentTarget.style.color = tokens.colors.surface;
+                        e.currentTarget.style.borderColor = tokens.colors.accentPrimary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = tokens.colors.background;
+                        e.currentTarget.style.color = tokens.colors.textSecondary;
+                        e.currentTarget.style.borderColor = tokens.colors.surfaceBorder;
+                      }}
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => {
+                        const today = new Date();
+                        const dayOfWeek = today.getDay();
+                        const start = new Date(today);
+                        start.setDate(today.getDate() - dayOfWeek);
+                        const end = new Date(today);
+                        end.setDate(today.getDate() + (6 - dayOfWeek));
+                        setTempFrom(start.toISOString().split('T')[0]);
+                        setTempTo(end.toISOString().split('T')[0]);
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: `1px solid ${tokens.colors.surfaceBorder}`,
+                        background: tokens.colors.background,
+                        color: tokens.colors.textSecondary,
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = tokens.colors.accentPrimary;
+                        e.currentTarget.style.color = tokens.colors.surface;
+                        e.currentTarget.style.borderColor = tokens.colors.accentPrimary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = tokens.colors.background;
+                        e.currentTarget.style.color = tokens.colors.textSecondary;
+                        e.currentTarget.style.borderColor = tokens.colors.surfaceBorder;
+                      }}
+                    >
+                      This Week
+                    </button>
+                    <button
+                      onClick={() => {
+                        const today = new Date();
+                        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+                        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                        setTempFrom(start.toISOString().split('T')[0]);
+                        setTempTo(end.toISOString().split('T')[0]);
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: `1px solid ${tokens.colors.surfaceBorder}`,
+                        background: tokens.colors.background,
+                        color: tokens.colors.textSecondary,
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = tokens.colors.accentPrimary;
+                        e.currentTarget.style.color = tokens.colors.surface;
+                        e.currentTarget.style.borderColor = tokens.colors.accentPrimary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = tokens.colors.background;
+                        e.currentTarget.style.color = tokens.colors.textSecondary;
+                        e.currentTarget.style.borderColor = tokens.colors.surfaceBorder;
+                      }}
+                    >
+                      This Month
+                    </button>
                   </div>
+
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
                       onClick={() => setShowPicker(false)}
