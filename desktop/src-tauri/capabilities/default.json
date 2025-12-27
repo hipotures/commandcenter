@@ -6,6 +6,9 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:window:allow-create",
+    "core:window:allow-center",
+    "core:window:allow-set-title"
   ]
 }

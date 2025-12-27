@@ -20,10 +20,12 @@ export function useDashboard(
 ) {
   return useQuery({
     queryKey: ['dashboard', from, to, refresh, granularity],
-    queryFn: () =>
-      invoke<DashboardBundle>('get_dashboard_bundle', {
+    queryFn: async () => {
+      const result = await invoke<DashboardBundle>('get_dashboard_bundle', {
         params: { from, to, refresh, granularity },
-      }),
+      });
+      return result;
+    },
     staleTime: 30_000, // 30 seconds
     retry: 2,
   });
@@ -33,10 +35,12 @@ export function useDashboard(
 export function useDayDetails(date: string | null) {
   return useQuery({
     queryKey: ['day', date],
-    queryFn: () =>
-      invoke<DayDetails>('get_day_details', {
+    queryFn: async () => {
+      const result = await invoke<DayDetails>('get_day_details', {
         params: { date: date! },
-      }),
+      });
+      return result;
+    },
     enabled: !!date,
     staleTime: 60_000, // 1 minute
   });
@@ -50,10 +54,12 @@ export function useModelDetails(
 ) {
   return useQuery({
     queryKey: ['model', model, from, to],
-    queryFn: () =>
-      invoke<ModelDetails>('get_model_details', {
+    queryFn: async () => {
+      const result = await invoke<ModelDetails>('get_model_details', {
         params: { model: model!, from, to },
-      }),
+      });
+      return result;
+    },
     enabled: !!model,
     staleTime: 60_000, // 1 minute
   });
@@ -63,10 +69,12 @@ export function useModelDetails(
 export function useSessionDetails(sessionId: string | null) {
   return useQuery({
     queryKey: ['session', sessionId],
-    queryFn: () =>
-      invoke<SessionDetails>('get_session_details', {
+    queryFn: async () => {
+      const result = await invoke<SessionDetails>('get_session_details', {
         params: { sessionId: sessionId! },
-      }),
+      });
+      return result;
+    },
     enabled: !!sessionId,
     staleTime: 300_000, // 5 minutes
   });
