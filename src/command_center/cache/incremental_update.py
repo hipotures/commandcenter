@@ -56,31 +56,38 @@ def perform_incremental_update(conn: sqlite3.Connection,
     affected_hours = set()
     affected_years = set()
 
-    # Process files
-    if verbose:
-        with Progress(
-            TextColumn("[bold blue]Processing files..."),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeRemainingColumn(),
-        ) as progress:
-            task = progress.add_task("Processing", total=len(files_to_process))
+    # Process files with progress bar (always shown)
+    with Progress(
+        TextColumn("[bold blue]Processing files..."),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeRemainingColumn(),
+    ) as progress:
+        task = progress.add_task("Processing", total=len(files_to_process))
 
-            for file_path in files_to_process:
-                entry_count = process_file(
-                    conn, file_path, affected_hours, affected_years
-                )
-                progress.update(task, advance=1)
-    else:
         for file_path in files_to_process:
-            process_file(conn, file_path, affected_hours, affected_years)
+            entry_count = process_file(
+                conn, file_path, affected_hours, affected_years
+            )
+            progress.update(task, advance=1)
+
+            # Verbose: show details for each file
+            if verbose and entry_count > 0:
+                progress.console.print(f"  [dim]Processed {entry_count} entries from {os.path.basename(file_path)}[/dim]")
 
     # Recompute aggregates for affected hours/years
     if affected_hours:
+        if verbose:
+            from rich.console import Console
+            Console().print(f"[dim]Recomputing hourly aggregates for {len(affected_hours)} hours...[/dim]")
         recompute_hourly_aggregates(conn, affected_hours)
 
-    for year in affected_years:
-        recompute_model_aggregates(conn, year)
+    if affected_years:
+        if verbose:
+            from rich.console import Console
+            Console().print(f"[dim]Recomputing model aggregates for years: {sorted(affected_years)}[/dim]")
+        for year in affected_years:
+            recompute_model_aggregates(conn, year)
 
     return len(files_to_process)
 

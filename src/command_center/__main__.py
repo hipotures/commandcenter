@@ -7,6 +7,8 @@ import argparse
 import sys
 from datetime import datetime
 from rich.console import Console
+from rich.spinner import Spinner
+from rich.live import Live
 
 from command_center import __version__
 from command_center.database.connection import get_db_connection
@@ -168,7 +170,6 @@ def main():
             return
 
         # Perform incremental update
-        console.print(f"[bold blue]Scanning for new/modified files...[/bold blue]")
         updated_count = perform_incremental_update(
             conn,
             force_rescan=args.force_rescan,
@@ -176,21 +177,21 @@ def main():
         )
 
         if updated_count > 0:
-            console.print(f"[green]Processed {updated_count} new/modified files[/green]\n")
+            console.print(f"[green]✓ Processed {updated_count} new/modified files[/green]\n")
         else:
-            console.print("[green]All files up to date (using cached data)[/green]\n")
+            console.print("[green]✓ All files up to date (using cached data)[/green]\n")
 
         # Query stats for date range
-        console.print(f"[bold]Generating usage report for {args.date_from} to {args.date_to}...[/bold]")
-        stats = query_usage_stats(conn, args.date_from, args.date_to)
+        with Live(Spinner("dots", text=f"[bold blue]Querying data for {args.date_from} to {args.date_to}...[/bold blue]"), console=console, refresh_per_second=10):
+            stats = query_usage_stats(conn, args.date_from, args.date_to)
 
         if not stats.daily_activity:
             console.print(f"[red]No activity found for date range {args.date_from} to {args.date_to}[/red]")
             sys.exit(1)
 
         # Generate PNG
-        console.print("Generating PNG image...")
-        png_bytes = generate_usage_report_png(stats)
+        with Live(Spinner("dots", text="[bold blue]Generating PNG image...[/bold blue]"), console=console, refresh_per_second=10):
+            png_bytes = generate_usage_report_png(stats)
 
         # Display in terminal
         display_png_in_terminal(png_bytes)
