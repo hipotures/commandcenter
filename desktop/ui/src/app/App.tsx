@@ -1203,7 +1203,7 @@ function DashboardContent() {
                   {/* Quick shortcuts */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
                     gap: '6px',
                     marginBottom: '16px',
                     paddingTop: '8px',
@@ -1305,6 +1305,37 @@ function DashboardContent() {
                       }}
                     >
                       This Month
+                    </button>
+                    <button
+                      onClick={() => {
+                        const today = new Date();
+                        const start = new Date(today.getFullYear(), 0, 1);
+                        setTempFrom(start.toISOString().split('T')[0]);
+                        setTempTo(today.toISOString().split('T')[0]);
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: `1px solid ${tokens.colors.surfaceBorder}`,
+                        background: tokens.colors.background,
+                        color: tokens.colors.textSecondary,
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = tokens.colors.accentPrimary;
+                        e.currentTarget.style.color = tokens.colors.surface;
+                        e.currentTarget.style.borderColor = tokens.colors.accentPrimary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = tokens.colors.background;
+                        e.currentTarget.style.color = tokens.colors.textSecondary;
+                        e.currentTarget.style.borderColor = tokens.colors.surfaceBorder;
+                      }}
+                    >
+                      This Year
                     </button>
                   </div>
 
