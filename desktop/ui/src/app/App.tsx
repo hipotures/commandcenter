@@ -146,11 +146,23 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
 
   const { weeks, maxCount } = useMemo(() => {
-    // Fill in missing dates with 0 counts
-    const filledData: { [key: string]: number } = {};
-    const start = new Date(dateFrom);
-    const end = new Date(dateTo);
+    // Always show full year - determine the year range from available data
+    const allDates = Object.keys(data);
+    if (allDates.length === 0) {
+      return { weeks: [], maxCount: 1 };
+    }
 
+    // Get min/max dates from data
+    const sortedDates = allDates.sort();
+    const firstDate = new Date(sortedDates[0]);
+    const lastDate = new Date(sortedDates[sortedDates.length - 1]);
+
+    // Expand to show full year(s)
+    const start = new Date(firstDate.getFullYear(), 0, 1);
+    const end = new Date(lastDate.getFullYear(), 11, 31);
+
+    // Fill in all dates in the year range
+    const filledData: { [key: string]: number } = {};
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dateStr = d.toISOString().split('T')[0];
       filledData[dateStr] = data[dateStr] || 0;
@@ -185,7 +197,7 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
       .map(([_, week]) => week);
 
     return { weeks: weeksArr, maxCount: max };
-  }, [data, dateFrom, dateTo]);
+  }, [data]);
 
   const getHeatLevel = (count: number) => {
     if (count === 0) return 0;
@@ -223,33 +235,27 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
       </div>
       
       {/* Month labels */}
-      <div style={{ display: 'flex', marginLeft: '36px', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', marginLeft: '36px', marginBottom: '8px', gap: '3.3px' }}>
         {weeks.map((week, idx) => {
-          // Filter days within date range
-          const validDays = week.filter((d: any) => d.date >= dateFrom && d.date <= dateTo);
-          if (validDays.length === 0) return null;
+          if (week.length === 0) return null;
 
           // Show month label only when month changes
-          const currentMonth = new Date(validDays[0].date).getMonth();
-          const prevMonth = idx > 0 && weeks[idx - 1][0]
+          const currentMonth = new Date(week[0].date).getMonth();
+          const prevMonth = idx > 0 && weeks[idx - 1].length > 0
             ? new Date(weeks[idx - 1][0].date).getMonth()
             : -1;
 
-          if (currentMonth !== prevMonth) {
-            return (
-              <div key={idx} style={{
-                width: '57px',
-                fontSize: '11px',
-                color: tokens.colors.textMuted,
-                fontWeight: '500',
-              }}>
-                {monthLabels[currentMonth]}
-              </div>
-            );
-          }
-
-          // Empty space for weeks without month label
-          return <div key={idx} style={{ width: '57px' }} />;
+          return (
+            <div key={idx} style={{
+              width: '14px',
+              fontSize: '11px',
+              color: tokens.colors.textMuted,
+              fontWeight: '500',
+              textAlign: 'left',
+            }}>
+              {currentMonth !== prevMonth ? monthLabels[currentMonth] : ''}
+            </div>
+          );
         })}
       </div>
 
@@ -275,13 +281,9 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
           {weeks.map((week, weekIdx) => {
             const isFirstWeek = weekIdx === 0;
 
-            // Filter days to only include those within the date range
-            const validDays = week.filter((d: any) => d.date >= dateFrom && d.date <= dateTo);
+            if (week.length === 0) return null;
 
-            // Skip empty weeks
-            if (validDays.length === 0) return null;
-
-            const minDayOfWeek = Math.min(...validDays.map((d: any) => d.dayOfWeek));
+            const minDayOfWeek = Math.min(...week.map((d: any) => d.dayOfWeek));
 
             return (
               <div key={weekIdx} style={{ display: 'flex', flexDirection: 'column', gap: '3.6px' }}>
@@ -291,8 +293,10 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
                 ))}
 
                 {/* Render actual days */}
-                {validDays.sort((a: any, b: any) => a.dayOfWeek - b.dayOfWeek).map((day: any) => {
+                {week.sort((a: any, b: any) => a.dayOfWeek - b.dayOfWeek).map((day: any) => {
                   const level = getHeatLevel(day.count);
+                  const isInSelectedRange = day.date >= dateFrom && day.date <= dateTo;
+
                   return (
                     <div
                       key={day.date}
@@ -302,8 +306,10 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
                         borderRadius: '3px',
                         backgroundColor: tokens.colors.heatmap[level],
                         cursor: 'pointer',
-                        transition: 'transform 0.15s ease',
+                        transition: 'all 0.15s ease',
                         transform: hoveredDay === day.date ? 'scale(1.3)' : 'scale(1)',
+                        outline: isInSelectedRange ? `1px solid ${tokens.colors.accentPrimary}80` : 'none',
+                        outlineOffset: '-1px',
                       }}
                       onMouseEnter={() => setHoveredDay(day.date)}
                       onMouseLeave={() => setHoveredDay(null)}
