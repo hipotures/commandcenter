@@ -159,27 +159,31 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
     const entries = Object.entries(filledData).sort(([a], [b]) => a.localeCompare(b));
     const max = Math.max(...Object.values(filledData).map((v: any) => v as number), 1); // At least 1 to avoid division by 0
 
-    // Group into weeks
-    const weeksArr: any[] = [];
-    let currentWeek: any[] = [];
+    // Group into weeks - only create weeks that have actual data
+    const weeksMap = new Map<string, any[]>();
 
-    entries.forEach(([date, count], idx) => {
-      const dayOfWeek = new Date(date).getDay();
+    entries.forEach(([date, count]) => {
+      const d = new Date(date);
+      // Convert Sunday=0 to Monday=0 system (0=Mon, 1=Tue, ..., 6=Sun)
+      const dayOfWeek = (d.getDay() + 6) % 7;
 
-      // Start new week on Sunday
-      if (dayOfWeek === 0 && currentWeek.length > 0) {
-        weeksArr.push(currentWeek);
-        currentWeek = [];
+      // Calculate week key (Monday of that week)
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - dayOfWeek);
+      const weekKey = monday.toISOString().split('T')[0];
+
+      if (!weeksMap.has(weekKey)) {
+        weeksMap.set(weekKey, []);
       }
 
-      currentWeek.push({ date, count, dayOfWeek });
-
-      if (idx === entries.length - 1) {
-        weeksArr.push(currentWeek);
-      }
+      weeksMap.get(weekKey)!.push({ date, count, dayOfWeek });
     });
 
-    // Show all weeks (not just last 53)
+    // Convert map to array and sort by week start date
+    const weeksArr = Array.from(weeksMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([_, week]) => week);
+
     return { weeks: weeksArr, maxCount: max };
   }, [data, dateFrom, dateTo]);
 
@@ -194,7 +198,7 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
     return 6;
   };
 
-  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   return (
@@ -221,69 +225,95 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
       {/* Month labels */}
       <div style={{ display: 'flex', marginLeft: '36px', marginBottom: '8px' }}>
         {weeks.map((week, idx) => {
-          if (idx % 4 === 0 && week[0]) {
-            const month = new Date(week[0].date).getMonth();
+          // Filter days within date range
+          const validDays = week.filter((d: any) => d.date >= dateFrom && d.date <= dateTo);
+          if (validDays.length === 0) return null;
+
+          // Show month label only when month changes
+          const currentMonth = new Date(validDays[0].date).getMonth();
+          const prevMonth = idx > 0 && weeks[idx - 1][0]
+            ? new Date(weeks[idx - 1][0].date).getMonth()
+            : -1;
+
+          if (currentMonth !== prevMonth) {
             return (
-              <div key={idx} style={{ 
-                width: '52px', 
-                fontSize: '11px', 
+              <div key={idx} style={{
+                width: '57px',
+                fontSize: '11px',
                 color: tokens.colors.textMuted,
                 fontWeight: '500',
               }}>
-                {monthLabels[month]}
+                {monthLabels[currentMonth]}
               </div>
             );
           }
-          return null;
+
+          // Empty space for weeks without month label
+          return <div key={idx} style={{ width: '57px' }} />;
         })}
       </div>
-      
+
       <div style={{ display: 'flex', gap: '4px' }}>
         {/* Day labels */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginRight: '8px' }}>
-          {dayLabels.map((day, idx) => (
-            <div key={day} style={{ 
-              height: '13px', 
-              fontSize: '10px', 
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3.6px', marginRight: '8px' }}>
+          {dayLabels.map((day) => (
+            <div key={day} style={{
+              height: '14px',
+              fontSize: '10px',
               color: tokens.colors.textMuted,
               display: 'flex',
               alignItems: 'center',
               fontWeight: '500',
             }}>
-              {idx % 2 === 1 ? day : ''}
+              {day}
             </div>
           ))}
         </div>
-        
+
         {/* Heatmap grid */}
-        <div style={{ display: 'flex', gap: '3px', position: 'relative' }}>
-          {weeks.map((week, weekIdx) => (
-            <div key={weekIdx} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-              {Array.from({ length: 7 }, (_: any, dayIdx: number) => {
-                const day = week.find((d: any) => d.dayOfWeek === dayIdx);
-                if (!day) return <div key={dayIdx} style={{ width: '13px', height: '13px' }} />;
-                
-                const level = getHeatLevel(day.count);
-                return (
-                  <div
-                    key={dayIdx}
-                    style={{
-                      width: '13px',
-                      height: '13px',
-                      borderRadius: '3px',
-                      backgroundColor: tokens.colors.heatmap[level],
-                      cursor: 'pointer',
-                      transition: 'transform 0.15s ease',
-                      transform: hoveredDay === day.date ? 'scale(1.3)' : 'scale(1)',
-                    }}
-                    onMouseEnter={() => setHoveredDay(day.date)}
-                    onMouseLeave={() => setHoveredDay(null)}
-                    title={`${day.date}: ${day.count} messages`}
-                  />
-                );
-              })}
-            </div>
-          ))}
+        <div style={{ display: 'flex', gap: '3.3px', position: 'relative' }}>
+          {weeks.map((week, weekIdx) => {
+            const isFirstWeek = weekIdx === 0;
+
+            // Filter days to only include those within the date range
+            const validDays = week.filter((d: any) => d.date >= dateFrom && d.date <= dateTo);
+
+            // Skip empty weeks
+            if (validDays.length === 0) return null;
+
+            const minDayOfWeek = Math.min(...validDays.map((d: any) => d.dayOfWeek));
+
+            return (
+              <div key={weekIdx} style={{ display: 'flex', flexDirection: 'column', gap: '3.6px' }}>
+                {/* For first week, add empty divs before first day for alignment */}
+                {isFirstWeek && Array.from({ length: minDayOfWeek }, (_, idx) => (
+                  <div key={`empty-${idx}`} style={{ width: '14px', height: '14px' }} />
+                ))}
+
+                {/* Render actual days */}
+                {validDays.sort((a: any, b: any) => a.dayOfWeek - b.dayOfWeek).map((day: any) => {
+                  const level = getHeatLevel(day.count);
+                  return (
+                    <div
+                      key={day.date}
+                      style={{
+                        width: '14px',
+                        height: '14px',
+                        borderRadius: '3px',
+                        backgroundColor: tokens.colors.heatmap[level],
+                        cursor: 'pointer',
+                        transition: 'transform 0.15s ease',
+                        transform: hoveredDay === day.date ? 'scale(1.3)' : 'scale(1)',
+                      }}
+                      onMouseEnter={() => setHoveredDay(day.date)}
+                      onMouseLeave={() => setHoveredDay(null)}
+                      title={`${day.date}: ${day.count} messages`}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
           
           {/* Tooltip */}
           {hoveredDay && (
@@ -309,10 +339,10 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
       </div>
       
       {/* Legend */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '8px', 
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
         marginTop: '16px',
         marginLeft: '36px',
       }}>
@@ -321,8 +351,8 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
           <div
             key={idx}
             style={{
-              width: '13px',
-              height: '13px',
+              width: '14px',
+              height: '14px',
               borderRadius: '3px',
               backgroundColor: color,
             }}
@@ -1212,8 +1242,8 @@ function DashboardContent() {
                     <button
                       onClick={() => {
                         const today = new Date().toISOString().split('T')[0];
-                        setTempFrom(today);
-                        setTempTo(today);
+                        setDateRange({ from: today, to: today });
+                        setShowPicker(false);
                       }}
                       style={{
                         padding: '8px 12px',
@@ -1247,8 +1277,11 @@ function DashboardContent() {
                         start.setDate(today.getDate() - dayOfWeek);
                         const end = new Date(today);
                         end.setDate(today.getDate() + (6 - dayOfWeek));
-                        setTempFrom(start.toISOString().split('T')[0]);
-                        setTempTo(end.toISOString().split('T')[0]);
+                        setDateRange({
+                          from: start.toISOString().split('T')[0],
+                          to: end.toISOString().split('T')[0]
+                        });
+                        setShowPicker(false);
                       }}
                       style={{
                         padding: '8px 12px',
@@ -1279,8 +1312,11 @@ function DashboardContent() {
                         const today = new Date();
                         const start = new Date(today.getFullYear(), today.getMonth(), 1);
                         const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                        setTempFrom(start.toISOString().split('T')[0]);
-                        setTempTo(end.toISOString().split('T')[0]);
+                        setDateRange({
+                          from: start.toISOString().split('T')[0],
+                          to: end.toISOString().split('T')[0]
+                        });
+                        setShowPicker(false);
                       }}
                       style={{
                         padding: '8px 12px',
@@ -1309,9 +1345,14 @@ function DashboardContent() {
                     <button
                       onClick={() => {
                         const today = new Date();
-                        const start = new Date(today.getFullYear(), 0, 1);
-                        setTempFrom(start.toISOString().split('T')[0]);
-                        setTempTo(today.toISOString().split('T')[0]);
+                        const year = today.getFullYear();
+                        const month = String(today.getMonth() + 1).padStart(2, '0');
+                        const day = String(today.getDate()).padStart(2, '0');
+                        setDateRange({
+                          from: `${year}-01-01`,
+                          to: `${year}-${month}-${day}`
+                        });
+                        setShowPicker(false);
                       }}
                       style={{
                         padding: '8px 12px',
