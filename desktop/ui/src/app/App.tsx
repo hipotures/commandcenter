@@ -466,13 +466,18 @@ const ModelDistribution = ({ data }: any) => {
         {data.map((model: any, idx: number) => (
           <div
             key={model.model}
+            onMouseEnter={() => setActiveIndex(idx)}
+            onMouseLeave={() => setActiveIndex(null)}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '10px 12px',
               borderRadius: '8px',
-              background: tokens.colors.background,
+              background: activeIndex === idx ? tokens.colors.surface : tokens.colors.background,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              border: `1px solid ${activeIndex === idx ? tokens.colors.accentPrimary : 'transparent'}`,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -777,6 +782,7 @@ const DailyPatterns = ({ data }: any) => {
 // CACHE EFFICIENCY COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
+  const [hoveredStat, setHoveredStat] = useState<'read' | 'write' | null>(null);
   const hitRate = ((cacheRead / (cacheRead + cacheWrite)) * 100).toFixed(1);
 
   return (
@@ -824,11 +830,11 @@ const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
               cy="70"
               r="60"
               fill="none"
-              stroke={tokens.colors.semanticSuccess}
-              strokeWidth="12"
+              stroke={hoveredStat === 'read' ? tokens.colors.semanticSuccess : hoveredStat === 'write' ? tokens.colors.accentPrimary : tokens.colors.semanticSuccess}
+              strokeWidth={hoveredStat ? 14 : 12}
               strokeLinecap="round"
               strokeDasharray={`${(parseFloat(hitRate) / 100) * 377} 377`}
-              style={{ transition: 'stroke-dasharray 1s ease' }}
+              style={{ transition: 'all 0.3s ease' }}
             />
           </svg>
           <div style={{
@@ -855,29 +861,43 @@ const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
       
       {/* Stats */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '12px',
-          background: tokens.colors.background,
-          borderRadius: '8px',
-        }}>
+        <div
+          onMouseEnter={() => setHoveredStat('read')}
+          onMouseLeave={() => setHoveredStat(null)}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '12px',
+            background: hoveredStat === 'read' ? tokens.colors.surface : tokens.colors.background,
+            borderRadius: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            border: `1px solid ${hoveredStat === 'read' ? tokens.colors.semanticSuccess : 'transparent'}`,
+          }}
+        >
           <span style={{ fontSize: '13px', color: tokens.colors.textMuted }}>Cache Read</span>
-          <span style={{ fontSize: '14px', fontWeight: '600', color: tokens.colors.accentPrimary }}>
+          <span style={{ fontSize: '14px', fontWeight: '600', color: hoveredStat === 'read' ? tokens.colors.semanticSuccess : tokens.colors.accentPrimary }}>
             {formatNumber(cacheRead)} tok
           </span>
         </div>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '12px',
-          background: tokens.colors.background,
-          borderRadius: '8px',
-        }}>
+        <div
+          onMouseEnter={() => setHoveredStat('write')}
+          onMouseLeave={() => setHoveredStat(null)}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '12px',
+            background: hoveredStat === 'write' ? tokens.colors.surface : tokens.colors.background,
+            borderRadius: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            border: `1px solid ${hoveredStat === 'write' ? tokens.colors.accentPrimary : 'transparent'}`,
+          }}
+        >
           <span style={{ fontSize: '13px', color: tokens.colors.textMuted }}>Cache Write</span>
-          <span style={{ fontSize: '14px', fontWeight: '600', color: tokens.colors.accentPrimary }}>
+          <span style={{ fontSize: '14px', fontWeight: '600', color: hoveredStat === 'write' ? tokens.colors.accentPrimary : tokens.colors.accentPrimary }}>
             {formatNumber(cacheWrite)} tok
           </span>
         </div>
