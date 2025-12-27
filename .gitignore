@@ -20,6 +20,7 @@ old/
 *.tmp
 *.log
 *.png
+!assets/**
 
 # IDE
 .vscode/

@@ -8,6 +8,17 @@ Modern SQLite-based analytics for Claude Code usage with intelligent caching.
 
 **Inspiration:** The idea and analysis approach were inspired by [cc-wrapped](https://github.com/numman-ali/cc-wrapped).
 
+### Example Report
+
+![Claude Code Usage Report](assets/images/cc-usage-report.png)
+
+**Features:**
+- 📅 Activity heatmap with daily usage patterns
+- 📊 Top models by token consumption
+- 💾 Cache efficiency metrics (read/write/hit rate)
+- 📈 Total sessions, messages, and tokens
+- 🔥 Current usage streak tracking
+
 ### Installation
 
 **Option 1: Global installation (recommended)**
