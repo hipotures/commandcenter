@@ -374,7 +374,7 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const ModelDistribution = ({ data }: any) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  
+
   const chartColors = [
     tokens.colors.accentPrimary,
     tokens.colors.accentSecondary,
@@ -390,7 +390,6 @@ const ModelDistribution = ({ data }: any) => {
       borderRadius: '16px',
       padding: '24px',
       boxShadow: tokens.shadows.md,
-      height: '100%',
     }}>
       <div style={{ 
         display: 'flex', 
@@ -405,7 +404,7 @@ const ModelDistribution = ({ data }: any) => {
         Model Distribution
       </div>
       
-      <div style={{ height: '200px' }}>
+      <div style={{ height: '160px' }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -414,8 +413,8 @@ const ModelDistribution = ({ data }: any) => {
               nameKey="displayName"
               cx="50%"
               cy="50%"
-              innerRadius={55}
-              outerRadius={80}
+              innerRadius={45}
+              outerRadius={65}
               paddingAngle={3}
               onMouseEnter={(_, idx) => setActiveIndex(idx)}
               onMouseLeave={() => setActiveIndex(null)}
@@ -458,16 +457,22 @@ const ModelDistribution = ({ data }: any) => {
       </div>
       
       {/* Legend */}
-      <div style={{ marginTop: '16px' }}>
+      <div style={{
+        marginTop: '16px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: '12px',
+      }}>
         {data.map((model: any, idx: number) => (
-          <div 
+          <div
             key={model.model}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '10px 0',
-              borderBottom: idx < data.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              background: tokens.colors.background,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -475,17 +480,17 @@ const ModelDistribution = ({ data }: any) => {
                 width: '12px',
                 height: '12px',
                 borderRadius: '4px',
-                backgroundColor: chartColors[idx],
+                backgroundColor: chartColors[idx % chartColors.length],
               }} />
-              <span style={{ fontSize: '14px', fontWeight: '500', color: tokens.colors.textSecondary }}>
+              <span style={{ fontSize: '13px', fontWeight: '500', color: tokens.colors.textSecondary }}>
                 {model.displayName}
               </span>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: tokens.colors.accentPrimary }}>
+              <div style={{ fontSize: '13px', fontWeight: '600', color: tokens.colors.accentPrimary }}>
                 {((model.tokens / totalTokens) * 100).toFixed(1)}%
               </div>
-              <div style={{ fontSize: '11px', color: tokens.colors.textMuted }}>
+              <div style={{ fontSize: '10px', color: tokens.colors.textMuted }}>
                 {formatNumber(model.tokens)} tok
               </div>
             </div>
@@ -612,7 +617,7 @@ const ActivityTimeline = ({ data }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const HourlyPatterns = ({ data }: any) => {
   const peakHour = data.reduce((max: any, curr: any) => curr.activity > max.activity ? curr : max, data[0]);
-  
+
   return (
     <div style={{
       background: tokens.colors.surface,
@@ -620,7 +625,6 @@ const HourlyPatterns = ({ data }: any) => {
       borderRadius: '16px',
       padding: '24px',
       boxShadow: tokens.shadows.md,
-      height: '100%',
     }}>
       <div style={{ 
         display: 'flex', 
@@ -694,7 +698,7 @@ const HourlyPatterns = ({ data }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
   const hitRate = ((cacheRead / (cacheRead + cacheWrite)) * 100).toFixed(1);
-  
+
   return (
     <div style={{
       background: tokens.colors.surface,
@@ -702,7 +706,6 @@ const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
       borderRadius: '16px',
       padding: '24px',
       boxShadow: tokens.shadows.md,
-      height: '100%',
     }}>
       <div style={{ 
         display: 'flex', 
@@ -1522,17 +1525,25 @@ function DashboardContent() {
           />
         </div>
         
-        {/* Charts Row 1 */}
+        {/* Activity Timeline */}
+        <div style={{ marginBottom: '32px' }}>
+          <ActivityTimeline data={data.monthlyData} />
+        </div>
+
+        {/* Model Distribution & Cache Efficiency */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '2fr 1fr',
+          gridTemplateColumns: '1fr 1fr',
           gap: '20px',
           marginBottom: '32px',
         }}>
-          <ActivityTimeline data={data.monthlyData} />
           <ModelDistribution data={data.modelData} />
+          <CacheEfficiency
+            cacheRead={data.totals.cacheRead}
+            cacheWrite={data.totals.cacheWrite}
+          />
         </div>
-        
+
         {/* Activity Heatmap */}
         <div style={{ marginBottom: '32px' }}>
           <ActivityHeatmap
@@ -1541,18 +1552,9 @@ function DashboardContent() {
             dateTo={dateRange.to}
           />
         </div>
-        
-        {/* Charts Row 2 */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '20px',
-          marginBottom: '32px',
-        }}>
-          <CacheEfficiency 
-            cacheRead={data.totals.cacheRead} 
-            cacheWrite={data.totals.cacheWrite} 
-          />
+
+        {/* Hourly Patterns */}
+        <div style={{ marginBottom: '32px' }}>
           <HourlyPatterns data={data.hourlyData} />
         </div>
         
