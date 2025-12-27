@@ -5,7 +5,7 @@
 #### Method 1: Global Installation (Recommended)
 
 ```bash
-cd /home/xai/DEV/command-center
+# From the project root directory
 uv tool install -e .
 ```
 
@@ -19,7 +19,7 @@ uv tool install -e .
 #### Method 2: Virtual Environment
 
 ```bash
-cd /home/xai/DEV/command-center
+# From the project root directory
 uv sync
 source .venv/bin/activate
 command-center --verbose
@@ -35,7 +35,7 @@ command-center --verbose
 #### Method 3: Direct Execution
 
 ```bash
-cd /home/xai/DEV/command-center
+# From the project root directory
 uv run command-center --verbose
 ```
 
@@ -48,7 +48,7 @@ uv run command-center --verbose
 
 ### Configuration
 
-**File:** `/home/xai/DEV/command-center/src/command_center/config.py`
+**File:** `src/command_center/config.py`
 
 #### Environment Variables
 

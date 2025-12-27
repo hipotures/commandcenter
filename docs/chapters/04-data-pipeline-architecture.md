@@ -11,7 +11,7 @@ The data pipeline consists of seven distinct stages, each with clear responsibil
 
 ### Stage 1: File Discovery
 
-**Module:** `/home/xai/DEV/command-center/src/command_center/collectors/file_scanner.py`
+**Module:** `src/command_center/collectors/file_scanner.py`
 
 **Purpose:** Recursively scan filesystem to find all JSONL files containing Claude Code session data.
 
@@ -38,7 +38,7 @@ def scan_jsonl_files():
 
 ### Stage 2: Change Detection
 
-**Module:** `/home/xai/DEV/command-center/src/command_center/cache/file_tracker.py`
+**Module:** `src/command_center/cache/file_tracker.py`
 
 **Purpose:** Determine which files are new, modified, or unchanged since last scan.
 
@@ -71,7 +71,7 @@ def detect_file_changes(discovered_files, tracked):
 
 ### Stage 3: JSONL Parsing
 
-**Module:** `/home/xai/DEV/command-center/src/command_center/collectors/jsonl_parser.py`
+**Module:** `src/command_center/collectors/jsonl_parser.py`
 
 **Purpose:** Parse raw JSONL lines into structured `MessageEntry` objects with timezone conversion.
 
@@ -135,7 +135,7 @@ def parse_jsonl_line(line, source_file):
 
 ### Stage 4: Deduplication
 
-**Module:** `/home/xai/DEV/command-center/src/command_center/collectors/deduplication.py`
+**Module:** `src/command_center/collectors/deduplication.py`
 
 **Purpose:** Generate unique hash for each entry to prevent duplicates.
 
@@ -159,7 +159,7 @@ def compute_entry_hash(entry):
 
 ### Stage 5: Storage
 
-**Module:** `/home/xai/DEV/command-center/src/command_center/database/queries.py`
+**Module:** `src/command_center/database/queries.py`
 
 **Purpose:** Batch insert parsed entries into SQLite database.
 
@@ -194,7 +194,7 @@ def insert_message_entries(conn, entries):
 
 ### Stage 6: Aggregation
 
-**Module:** `/home/xai/DEV/command-center/src/command_center/database/queries.py`
+**Module:** `src/command_center/database/queries.py`
 
 **Purpose:** Pre-compute hourly and model-based statistics for fast querying.
 
@@ -254,7 +254,7 @@ def recompute_model_aggregates(conn, year):
 
 ### Stage 7: Querying
 
-**Module:** `/home/xai/DEV/command-center/src/command_center/database/queries.py`
+**Module:** `src/command_center/database/queries.py`
 
 **Purpose:** Fast retrieval of pre-computed statistics for visualization.
 

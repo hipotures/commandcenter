@@ -7,7 +7,7 @@ Command Center is a production-ready analytics platform that transforms Claude C
 - **Usability:** One-command execution with sensible defaults
 - **Maintainability:** Clear separation of concerns and comprehensive documentation
 
-For questions, issues, or contributions, refer to the project repository at `/home/xai/DEV/command-center`.
+For questions, issues, or contributions, refer to the [project repository on GitHub](https://github.com/hipotures/command-center).
 
 ---
 
