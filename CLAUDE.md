@@ -1,0 +1,157 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+Command Center is a SQLite-based analytics tool for Claude Code usage data. It processes JSONL session logs from `~/.claude/sessions/`, performs intelligent incremental updates, and generates "wrapped" reports (PNG + terminal display).
+
+## Development Commands
+
+### Installation & Setup
+
+```bash
+# Global installation (recommended for production use)
+uv tool install -e .
+
+# Local development with virtual environment
+uv sync
+source .venv/bin/activate
+```
+
+### Running the Tool
+
+```bash
+# Generate wrapped for current year
+commandcenter --verbose
+
+# Generate for specific year
+commandcenter --year 2024
+
+# Show database statistics
+commandcenter --db-stats
+
+# Force full rescan (ignore file tracking cache)
+commandcenter --force-rescan
+
+# Rebuild database from scratch
+commandcenter --rebuild-db
+```
+
+### Without Installation
+
+```bash
+uv run commandcenter --verbose
+```
+
+## Architecture
+
+### Data Pipeline Flow
+
+1. **File Discovery** (`collectors/file_scanner.py`)
+   - Scans `~/.claude/sessions/*/messages.jsonl`
+   - Returns list of discovered JSONL files
+
+2. **Change Detection** (`cache/file_tracker.py`)
+   - Compares discovered files against `file_tracks` table
+   - Uses `mtime_ns` and `size_bytes` to detect changes
+   - Returns files with status: `new`, `modified`, or `unchanged`
+
+3. **Incremental Processing** (`cache/incremental_update.py`)
+   - Orchestrates the entire update pipeline
+   - Only processes new/modified files (unless `--force-rescan`)
+   - Tracks affected hours and years for aggregate recomputation
+
+4. **JSONL Parsing** (`collectors/jsonl_parser.py`)
+   - **Critical**: Converts UTC timestamps to local time
+   - Extracts tokens (input, output, cache read/write)
+   - Computes deduplication hash: `{message.id}:{requestId}`
+
+5. **Database Insertion** (`database/queries.py`)
+   - Batch inserts to `message_entries` (100 entries at a time)
+   - Uses `INSERT OR IGNORE` for deduplication
+
+6. **Aggregate Recomputation** (`aggregators/`)
+   - `hourly_aggregates`: Pre-computed stats per hour (local time)
+   - `model_aggregates`: Per-model statistics per year
+   - Only recomputes affected hours/years after incremental update
+
+7. **Visualization** (`visualization/`)
+   - Queries aggregated data via `database/queries.py`
+   - Generates PNG with Pillow (`png_generator.py`)
+   - Displays in terminal with iTerm2/Kitty inline protocol (`terminal_display.py`)
+
+### Database Schema
+
+**Core Tables:**
+- `message_entries`: Individual messages with deduplication via `entry_hash` (PRIMARY KEY)
+- `file_tracks`: Tracks processed files by `mtime_ns` and `size_bytes`
+- `hourly_aggregates`: Pre-computed hourly stats (indexed by `year`, `date`, `hour`)
+- `model_aggregates`: Per-model totals (composite PRIMARY KEY: `model`, `year`)
+- `schema_version`: Migration tracking
+
+**Key Indexes:**
+- `message_entries`: `year`, `date`, `session_id`, `model`
+- `hourly_aggregates`: `year`, `date`, `hour`
+- `file_tracks`: `last_scanned`
+
+### Time Handling
+
+**Critical Design Decision**: All timestamps are stored in **local time** after conversion from UTC.
+
+- Input: UTC timestamps from JSONL files
+- Conversion: `utils/date_helpers.py` → `parse_and_convert_to_local()`
+- Storage: `timestamp_local` (ISO 8601), `year`, `date` (YYYY-MM-DD)
+- Aggregation: All hourly/daily stats use local time
+
+This ensures wrapped reports match user's actual working hours.
+
+### Deduplication Strategy
+
+Uses composite hash: `{message.id}:{requestId}` (see `collectors/deduplication.py`)
+
+- Hash stored as `entry_hash` (PRIMARY KEY in `message_entries`)
+- `INSERT OR IGNORE` prevents duplicate processing
+- Allows safe re-processing of files without data duplication
+
+### Incremental Update Design
+
+The tool is optimized for speed on subsequent runs:
+
+- **First run**: ~1-2 minutes (processes all historical data)
+- **Subsequent runs**: ~5 seconds (only new/modified files)
+
+**How it works:**
+1. Scan filesystem for all `messages.jsonl` files
+2. Compare against `file_tracks` table (mtime + size)
+3. Only parse/insert entries from changed files
+4. Recompute only affected hourly/model aggregates
+5. Update file tracking metadata
+
+**Force rescan**: `--force-rescan` bypasses tracking, reprocesses everything (useful after schema changes)
+
+## Configuration
+
+All configuration is in `config.py`:
+- Database path: `~/.claude/db/cc-sessions.db`
+- Session paths: `~/.claude/sessions/` or `~/.config/claude/sessions/`
+- Canvas size: 1500×1400px
+- Color scheme: Defined in `COLORS` dict
+- Batch insert size: 100 entries
+
+## Data Models
+
+Key dataclasses in `database/models.py`:
+- `MessageEntry`: Individual message with tokens and cost
+- `HourlyAggregate`: Pre-computed hourly stats
+- `ModelAggregate`: Per-model statistics
+- `WrappedStats`: Final output for visualization
+- `FileTrack`: File processing metadata
+
+## Important Constraints
+
+1. **Never modify `entry_hash` computation** - would break deduplication across schema versions
+2. **Always use local time** for aggregations - matches user's working hours
+3. **Recompute aggregates** after any direct `message_entries` modifications
+4. **Use batch inserts** (BATCH_INSERT_SIZE=100) for performance
+5. **Database location** is fixed at `~/.claude/db/cc-sessions.db` (not configurable)
