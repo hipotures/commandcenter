@@ -1,7 +1,6 @@
 /// Tauri command handlers
 ///
 /// This module defines all Tauri commands that the frontend can invoke.
-use serde::Deserialize;
 use serde_json::Value;
 
 use crate::python_bridge::call_python_api;

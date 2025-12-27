@@ -65,7 +65,7 @@ def parse_args():
     parser.add_argument(
         "--version",
         action="version",
-        version=f"commandcenter {__version__}"
+        version=f"command-center {__version__}"
     )
 
     # Default dates

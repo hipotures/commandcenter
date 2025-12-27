@@ -6,7 +6,7 @@ A modular Python application for analyzing Claude Code usage with intelligent ca
 
 try:
     from importlib.metadata import version
-    __version__ = version("commandcenter")
+    __version__ = version("command-center")
 except Exception:
     # Fallback for development mode
     __version__ = "2.2.0-dev"

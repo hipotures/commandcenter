@@ -21,10 +21,7 @@ use std::process::Command;
 /// let result = call_python_api(&["dashboard", "--from", "2025-01-01", "--to", "2025-12-27"]);
 /// ```
 pub fn call_python_api(args: &[&str]) -> Result<Value, String> {
-    use log::info;
-
-    // Log the command being executed
-    info!("Executing: python -m command_center.tauri_api {}", args.join(" "));
+    use log::{info, debug};
 
     // Execute Python module - try multiple Python commands
     let python_commands = vec!["python", "python3", "uv run python"];
@@ -54,29 +51,28 @@ pub fn call_python_api(args: &[&str]) -> Result<Value, String> {
                 if !output.status.success() {
                     let stderr = String::from_utf8_lossy(&output.stderr);
                     last_error = format!("Python error ({}): {}", python_cmd, stderr);
-                    info!("Failed with {}: {}", python_cmd, stderr);
+                    debug!("Failed with {}: {}", python_cmd, stderr);
                     continue;
                 }
 
                 // Parse JSON from stdout
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                info!("Python stdout length: {} bytes", stdout.len());
 
                 match serde_json::from_str(&stdout) {
                     Ok(json) => {
-                        info!("Successfully parsed JSON from {}", python_cmd);
+                        info!("API call successful ({} bytes)", stdout.len());
                         return Ok(json);
                     }
                     Err(e) => {
                         last_error = format!("JSON parse error: {} | stdout: {}", e, stdout);
-                        info!("JSON parse error: {}", e);
+                        debug!("JSON parse error: {}", e);
                         continue;
                     }
                 }
             }
             Err(e) => {
                 last_error = format!("Failed to execute {}: {}", python_cmd, e);
-                info!("Failed to execute {}: {}", python_cmd, e);
+                debug!("Failed to execute {}: {}", python_cmd, e);
                 continue;
             }
         }

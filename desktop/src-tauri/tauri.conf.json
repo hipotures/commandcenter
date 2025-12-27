@@ -15,10 +15,10 @@
       {
         "label": "main",
         "title": "Command Center",
-        "width": 1200,
-        "height": 800,
+        "width": 1400,
+        "height": 1920,
         "minWidth": 1000,
-        "minHeight": 600,
+        "minHeight": 1200,
         "resizable": true,
         "fullscreen": false
       }
