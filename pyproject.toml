@@ -14,7 +14,6 @@ dependencies = [
 
 [project.scripts]
 command-center = "command_center.__main__:main"
-commandcenter = "command_center.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/command_center"]
