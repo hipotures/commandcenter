@@ -18,6 +18,7 @@ from command_center.cache.incremental_update import perform_incremental_update
 from command_center.visualization.png_generator import generate_usage_report_png
 from command_center.visualization.terminal_display import display_png_in_terminal
 from command_center.utils.console_output import show_db_stats
+from command_center.utils.pricing import update_pricing_cache
 
 
 console = Console()
@@ -107,6 +108,11 @@ def parse_args():
         action="store_true",
         help="Show database statistics and exit"
     )
+    parser.add_argument(
+        "--update-pricing",
+        action="store_true",
+        help="Update pricing cache from LiteLLM and exit"
+    )
 
     args = parser.parse_args()
 
@@ -146,6 +152,11 @@ def rebuild_database(conn):
 def main():
     """Main entry point"""
     args = parse_args()
+
+    # Update pricing cache and exit
+    if args.update_pricing:
+        success = update_pricing_cache()
+        sys.exit(0 if success else 1)
 
     # Connect to database
     with get_db_connection() as conn:

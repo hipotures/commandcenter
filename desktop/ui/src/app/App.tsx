@@ -1165,7 +1165,8 @@ function DashboardContent() {
       cacheWrite: apiData.totals.cache_write,
       maxStreak: apiData.totals.max_streak,
       currentStreak: apiData.totals.current_streak,
-    }
+    },
+    trends: apiData.trends || { messages: 0, sessions: 0, tokens: 0, cost: 0 }
   };
   
   return (
@@ -1616,28 +1617,28 @@ function DashboardContent() {
             title="Messages"
             value={formatNumber(data.totals.messages)}
             subtitle="Total API calls"
-            trend={12}
+            trend={data.trends.messages}
             icon={MessageSquare}
           />
           <KPICard
             title="Sessions"
             value={formatNumber(data.totals.sessions)}
             subtitle="Unique sessions"
-            trend={8}
+            trend={data.trends.sessions}
             icon={Users}
           />
           <KPICard
             title="Tokens"
             value={formatNumber(data.totals.tokens)}
             subtitle="Total processed"
-            trend={15}
+            trend={data.trends.tokens}
             icon={Zap}
           />
           <KPICard
             title="Cost"
             value={formatCurrency(data.totals.cost)}
             subtitle="Usage charges"
-            trend={-3}
+            trend={data.trends.cost}
             icon={Coins}
           />
           <KPICard

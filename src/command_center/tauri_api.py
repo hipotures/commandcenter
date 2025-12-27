@@ -13,7 +13,7 @@ Usage:
 import argparse
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 
 from command_center.database.connection import get_db_connection
@@ -31,6 +31,48 @@ from command_center.database.queries import (
 )
 from command_center.cache.incremental_update import perform_incremental_update
 from command_center.aggregators.streak_calculator import calculate_streaks
+
+
+def calculate_trend(current: float, previous: float) -> float:
+    """
+    Calculate percentage change between current and previous values.
+
+    Returns:
+        Percentage change (e.g., 15.5 means +15.5%, -3.2 means -3.2%)
+        Returns 0 if previous is 0 or invalid
+    """
+    if previous == 0 or not isinstance(previous, (int, float)) or not isinstance(current, (int, float)):
+        return 0.0
+
+    change = ((current - previous) / previous) * 100
+    return round(change, 1)
+
+
+def get_previous_period(date_from: str, date_to: str) -> tuple[str, str]:
+    """
+    Calculate the previous period with same duration as current period.
+
+    Args:
+        date_from: Current period start (YYYY-MM-DD)
+        date_to: Current period end (YYYY-MM-DD)
+
+    Returns:
+        Tuple of (previous_from, previous_to) in YYYY-MM-DD format
+    """
+    start = datetime.strptime(date_from, '%Y-%m-%d')
+    end = datetime.strptime(date_to, '%Y-%m-%d')
+
+    # Calculate period duration
+    duration = (end - start).days + 1  # +1 to include both start and end day
+
+    # Previous period ends one day before current period starts
+    prev_end = start - timedelta(days=1)
+    prev_start = prev_end - timedelta(days=duration - 1)
+
+    return (
+        prev_start.strftime('%Y-%m-%d'),
+        prev_end.strftime('%Y-%m-%d')
+    )
 
 
 def get_dashboard_bundle(
@@ -59,7 +101,7 @@ def get_dashboard_bundle(
         if refresh:
             updated_files = perform_incremental_update(conn, force_rescan=False, verbose=False)
 
-        # Query all data
+        # Query all data for current period
         totals = query_totals(conn, date_from, date_to)
         daily_activity = query_daily_stats(conn, date_from, date_to)
         timeline_data = query_timeline_data(conn, date_from, date_to, granularity)
@@ -69,6 +111,18 @@ def get_dashboard_bundle(
 
         # Calculate streaks
         max_streak, current_streak = calculate_streaks(daily_activity)
+
+        # Query previous period for trend calculation
+        prev_from, prev_to = get_previous_period(date_from, date_to)
+        prev_totals = query_totals(conn, prev_from, prev_to)
+
+        # Calculate trends
+        trends = {
+            "messages": calculate_trend(totals["messages"], prev_totals["messages"]),
+            "sessions": calculate_trend(totals["sessions"], prev_totals["sessions"]),
+            "tokens": calculate_trend(totals["tokens"], prev_totals["tokens"]),
+            "cost": calculate_trend(totals["cost"], prev_totals["cost"]),
+        }
 
         # Build response
         return {
@@ -89,6 +143,7 @@ def get_dashboard_bundle(
                 "max_streak": max_streak,
                 "first_session_date": totals["first_session_date"]
             },
+            "trends": trends,
             "daily_activity": daily_activity,
             "timeline": {
                 "granularity": granularity,

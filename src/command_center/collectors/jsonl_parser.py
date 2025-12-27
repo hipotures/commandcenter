@@ -7,6 +7,7 @@ from typing import Optional
 from command_center.database.models import MessageEntry
 from command_center.utils.date_helpers import parse_and_convert_to_local, format_datetime_hour, format_date_key
 from command_center.collectors.deduplication import compute_entry_hash
+from command_center.utils.pricing import get_model_pricing, calculate_cost_usd
 
 
 def parse_jsonl_line(line: str, source_file: str) -> Optional[MessageEntry]:
@@ -59,6 +60,25 @@ def parse_jsonl_line(line: str, source_file: str) -> Optional[MessageEntry]:
     cache_write = usage.get('cache_creation_input_tokens', 0) or 0
     total_tokens = input_tokens + output_tokens + cache_read + cache_write
 
+    # Calculate cost if not provided in JSONL
+    cost_usd = entry.get('costUSD')
+    if cost_usd is None:
+        model = entry.get('message', {}).get('model')
+        if model:
+            try:
+                pricing = get_model_pricing(model)
+                if pricing:
+                    cost_usd = calculate_cost_usd(
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cache_creation_tokens=cache_write,
+                        cache_read_tokens=cache_read,
+                        pricing=pricing
+                    )
+            except Exception:
+                # If pricing fails, leave cost as None
+                pass
+
     # Build MessageEntry
     return MessageEntry(
         entry_hash=entry_hash,
@@ -70,7 +90,7 @@ def parse_jsonl_line(line: str, source_file: str) -> Optional[MessageEntry]:
         request_id=entry.get('requestId'),
         message_id=entry.get('message', {}).get('id'),
         model=entry.get('message', {}).get('model'),
-        cost_usd=entry.get('costUSD'),
+        cost_usd=cost_usd,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         cache_read_tokens=cache_read,
