@@ -1,5 +1,5 @@
 """
-PNG generation for wrapped report
+PNG generation for usage report
 
 Ported from original cc_wrapped.py
 """
@@ -15,7 +15,7 @@ except ImportError:
     raise
 
 from commandcenter.config import COLORS, CANVAS_WIDTH, CANVAS_HEIGHT, FONT_PATHS
-from commandcenter.database.models import WrappedStats
+from commandcenter.database.models import UsageStats
 from commandcenter.aggregators.streak_calculator import calculate_streaks
 
 
@@ -67,12 +67,12 @@ def format_large_num(num: int) -> str:
         return f"{num:,}"
 
 
-def generate_wrapped_png(stats: WrappedStats) -> bytes:
+def generate_usage_report_png(stats: UsageStats) -> bytes:
     """
-    Generate PNG image of the wrapped report.
+    Generate PNG image of the usage report.
 
     Args:
-        stats: WrappedStats object with all data
+        stats: UsageStats object with all data
 
     Returns:
         PNG bytes
@@ -82,7 +82,7 @@ def generate_wrapped_png(stats: WrappedStats) -> bytes:
     draw = ImageDraw.Draw(img)
 
     # Fonts
-    font_large = load_font(72)
+    font_large = load_font(48)
     font_title = load_font(48)
     font_medium = load_font(32)
     font_small = load_font(24)
@@ -91,13 +91,22 @@ def generate_wrapped_png(stats: WrappedStats) -> bytes:
     y_offset = 80
 
     # === HEADER ===
-    header_text = f"CLAUDE CODE WRAPPED {stats.year}"
+    header_text = "CLAUDE CODE USAGE REPORT"
     bbox = draw.textbbox((0, 0), header_text, font=font_large)
     text_width = bbox[2] - bbox[0]
     x_center = (CANVAS_WIDTH - text_width) // 2
     draw.text((x_center, y_offset), header_text, fill=COLORS['accent_primary'], font=font_large)
 
-    y_offset += 150
+    y_offset += 60
+
+    # Date range subtitle
+    date_range_text = f"{stats.date_from} to {stats.date_to}"
+    bbox = draw.textbbox((0, 0), date_range_text, font=font_medium)
+    text_width = bbox[2] - bbox[0]
+    x_center = (CANVAS_WIDTH - text_width) // 2
+    draw.text((x_center, y_offset), date_range_text, fill=COLORS['text_secondary'], font=font_medium)
+
+    y_offset += 90
 
     # === HERO STATS ===
     # Calculate stats
@@ -139,18 +148,25 @@ def generate_wrapped_png(stats: WrappedStats) -> bytes:
     y_offset += panel_height + 60
 
     # === ACTIVITY HEATMAP ===
-    # Build heatmap data
-    year_start = datetime.datetime(stats.year, 1, 1)
+    # Build heatmap data based on date range
+    # Always generate 53 weeks for visual consistency, but show data only in range
+    date_from = datetime.datetime.strptime(stats.date_from, "%Y-%m-%d")
+    date_to = datetime.datetime.strptime(stats.date_to, "%Y-%m-%d")
+
+    # Start from beginning of year containing date_from
+    year_start = datetime.datetime(date_from.year, 1, 1)
     current_date = year_start - datetime.timedelta(days=year_start.weekday() + 1)
+
     weeks = []
     week_first_days = []
 
-    for _ in range(53):
+    for _ in range(53):  # Always 53 weeks for full width heatmap
         week = []
         week_first_days.append(current_date)
         for _ in range(7):
             date_str = current_date.strftime("%Y-%m-%d")
-            count = stats.daily_activity.get(date_str, 0) if current_date.year == stats.year else 0
+            # Only show counts within the actual date range
+            count = stats.daily_activity.get(date_str, 0) if date_from <= current_date <= date_to else 0
             week.append(count)
             current_date += datetime.timedelta(days=1)
         weeks.append(week)
@@ -181,17 +197,25 @@ def generate_wrapped_png(stats: WrappedStats) -> bytes:
         else:
             return 6
 
-    # Draw heatmap
-    heatmap_x = 150
+    # Draw heatmap - calculate cell size to fit panel width
+    # Heatmap should end at same vertical line as right edge of panels (panel_x2 + panel_width)
+    heatmap_start_x = panel_x1
+    heatmap_max_width = panel_width * 2 + panel_gap  # 1100px total
+    weeks_count = 53
+    cell_total_size = heatmap_max_width // weeks_count  # ~20.75, use 20
+    cell_size = 18
+    cell_gap = 2  # cell_size + cell_gap = 20
+
+    # Align heatmap - slight offset to match panel alignment
+    actual_heatmap_width = weeks_count * (cell_size + cell_gap)
+    heatmap_x = heatmap_start_x + (heatmap_max_width - actual_heatmap_width) // 2 + 20
     heatmap_y = y_offset
-    cell_size = 20
-    cell_gap = 3
 
     # Month labels
     month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     last_month = None
     for week_idx, week_start in enumerate(week_first_days):
-        if week_start.year == stats.year:
+        if date_from <= week_start <= date_to:
             current_month = week_start.month
             if current_month != last_month:
                 x = heatmap_x + week_idx * (cell_size + cell_gap)
@@ -240,38 +264,47 @@ def generate_wrapped_png(stats: WrappedStats) -> bytes:
     panel_y = y_offset
     panel_height = 250
 
-    # Top Models
-    draw_rounded_rectangle(draw, [150, panel_y, 650, panel_y + panel_height],
+    # Top Models (using same dimensions as top panels)
+    panel_x1 = 150
+    panel_width = 500
+    panel_gap = 100
+    panel_x2 = panel_x1 + panel_width + panel_gap
+
+    draw_rounded_rectangle(draw, [panel_x1, panel_y, panel_x1 + panel_width, panel_y + panel_height],
                           15, fill=COLORS['background'], outline=COLORS['surface_border'], width=2)
-    draw.text((170, panel_y + 20), "TOP MODELS", fill=COLORS['text_primary'], font=font_medium)
+    draw.text((panel_x1 + 20, panel_y + 20), "TOP MODELS", fill=COLORS['text_primary'], font=font_medium)
 
     model_y = panel_y + 80
+    model_label_x = panel_x1 + 20
+    model_value_x = panel_x1 + 320
     for i, model_data in enumerate(stats.top_models, 1):
         display_name = format_model_name(model_data['model'])
         token_str = format_tokens(model_data['tokens'])
 
-        draw.text((170, model_y), f"{i}. {display_name}", fill=COLORS['text_primary'], font=font_small)
-        draw.text((470, model_y), token_str, fill=COLORS['accent_primary'], font=font_small)
+        draw.text((model_label_x, model_y), f"{i}. {display_name}", fill=COLORS['text_primary'], font=font_small)
+        draw.text((model_value_x, model_y), token_str, fill=COLORS['accent_primary'], font=font_small)
         model_y += 45
 
-    # Cache Efficiency
-    draw_rounded_rectangle(draw, [700, panel_y, 1200, panel_y + panel_height],
+    # Cache Efficiency (using same dimensions as top panels)
+    draw_rounded_rectangle(draw, [panel_x2, panel_y, panel_x2 + panel_width, panel_y + panel_height],
                           15, fill=COLORS['background'], outline=COLORS['surface_border'], width=2)
-    draw.text((720, panel_y + 20), "CACHE EFFICIENCY", fill=COLORS['text_primary'], font=font_medium)
+    draw.text((panel_x2 + 20, panel_y + 20), "CACHE EFFICIENCY", fill=COLORS['text_primary'], font=font_medium)
 
     cache_read = stats.cache_read_tokens
     cache_write = stats.cache_write_tokens
     hit_rate = (cache_read / (cache_read + cache_write) * 100) if (cache_read + cache_write) > 0 else 0
 
     cache_y = panel_y + 80
-    draw.text((720, cache_y), "Cache Read:", fill=COLORS['text_muted'], font=font_small)
-    draw.text((950, cache_y), f"{format_tokens(cache_read)} tok", fill=COLORS['accent_primary'], font=font_small)
+    cache_label_x = panel_x2 + 20
+    cache_value_x = panel_x2 + 250
+    draw.text((cache_label_x, cache_y), "Cache Read:", fill=COLORS['text_muted'], font=font_small)
+    draw.text((cache_value_x, cache_y), f"{format_tokens(cache_read)} tok", fill=COLORS['accent_primary'], font=font_small)
     cache_y += 45
-    draw.text((720, cache_y), "Cache Write:", fill=COLORS['text_muted'], font=font_small)
-    draw.text((950, cache_y), f"{format_tokens(cache_write)} tok", fill=COLORS['accent_primary'], font=font_small)
+    draw.text((cache_label_x, cache_y), "Cache Write:", fill=COLORS['text_muted'], font=font_small)
+    draw.text((cache_value_x, cache_y), f"{format_tokens(cache_write)} tok", fill=COLORS['accent_primary'], font=font_small)
     cache_y += 45
-    draw.text((720, cache_y), "Hit Rate:", fill=COLORS['text_muted'], font=font_small)
-    draw.text((950, cache_y), f"{hit_rate:.1f}%", fill=COLORS['semantic_success'], font=font_small)
+    draw.text((cache_label_x, cache_y), "Hit Rate:", fill=COLORS['text_muted'], font=font_small)
+    draw.text((cache_value_x, cache_y), f"{hit_rate:.1f}%", fill=COLORS['semantic_success'], font=font_small)
 
     y_offset = panel_y + panel_height + 60
 
@@ -279,19 +312,26 @@ def generate_wrapped_png(stats: WrappedStats) -> bytes:
     max_streak, curr_streak = calculate_streaks(stats.daily_activity)
 
     grid_panel_height = 200
-    draw_rounded_rectangle(draw, [150, y_offset, 1350, y_offset + grid_panel_height],
+    grid_panel_width = panel_width * 2 + panel_gap  # Same total width as two panels above
+    draw_rounded_rectangle(draw, [panel_x1, y_offset, panel_x1 + grid_panel_width, y_offset + grid_panel_height],
                           15, fill=COLORS['background'], outline=COLORS['surface_border'], width=2)
 
     stat_y1 = y_offset + 30
     stat_y2 = y_offset + 120
 
+    # Calculate positions for 3 columns
+    stat_col_width = grid_panel_width // 3
+    stat_x1 = panel_x1 + 20
+    stat_x2 = panel_x1 + stat_col_width + 20
+    stat_x3 = panel_x1 + stat_col_width * 2 + 20
+
     stat_list = [
-        ("SESSIONS", f"{stats.total_sessions:,}", 170),
-        ("MESSAGES", f"{stats.total_messages:,}", 570),
-        ("TOTAL TOKENS", format_large_num(stats.total_tokens), 970),
-        ("PROJECTS", "N/A", 170),  # Projects not tracked in new version
-        ("STREAK", f"{max_streak}d", 570),
-        ("USAGE COST", f"${stats.total_cost:,.2f}" if stats.total_cost > 0 else "N/A", 970),
+        ("SESSIONS", f"{stats.total_sessions:,}", stat_x1),
+        ("MESSAGES", f"{stats.total_messages:,}", stat_x2),
+        ("TOTAL TOKENS", format_large_num(stats.total_tokens), stat_x3),
+        ("PROJECTS", "N/A", stat_x1),  # Projects not tracked in new version
+        ("STREAK", f"{max_streak}d", stat_x2),
+        ("USAGE COST", f"${stats.total_cost:,.2f}" if stats.total_cost > 0 else "N/A", stat_x3),
     ]
 
     for i, (label, value, x_pos) in enumerate(stat_list):

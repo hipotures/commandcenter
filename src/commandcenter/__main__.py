@@ -1,5 +1,5 @@
 """
-Claude Code Wrapped - Main entry point
+Claude Code Usage Reports - Main entry point
 
 Modern SQLite-based analytics with intelligent caching.
 """
@@ -10,9 +10,9 @@ from rich.console import Console
 
 from commandcenter.database.connection import get_db_connection
 from commandcenter.database.schema import init_database, check_integrity
-from commandcenter.database.queries import query_wrapped_stats
+from commandcenter.database.queries import query_usage_stats
 from commandcenter.cache.incremental_update import perform_incremental_update
-from commandcenter.visualization.png_generator import generate_wrapped_png
+from commandcenter.visualization.png_generator import generate_usage_report_png
 from commandcenter.visualization.terminal_display import display_png_in_terminal
 from commandcenter.utils.console_output import show_db_stats
 
@@ -20,16 +20,69 @@ from commandcenter.utils.console_output import show_db_stats
 console = Console()
 
 
+def parse_date(date_str):
+    """
+    Parse date string in YYYY-MM-DD or YYYYMMDD format.
+
+    Args:
+        date_str: Date string to parse
+
+    Returns:
+        Date string in YYYY-MM-DD format
+
+    Raises:
+        ValueError: If date format is invalid
+    """
+    date_str = date_str.strip()
+
+    # Try YYYY-MM-DD format
+    if len(date_str) == 10 and date_str[4] == '-' and date_str[7] == '-':
+        try:
+            datetime.strptime(date_str, '%Y-%m-%d')
+            return date_str
+        except ValueError:
+            raise ValueError(f"Invalid date: {date_str}. Use YYYY-MM-DD or YYYYMMDD format")
+
+    # Try YYYYMMDD format
+    if len(date_str) == 8 and date_str.isdigit():
+        try:
+            dt = datetime.strptime(date_str, '%Y%m%d')
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            raise ValueError(f"Invalid date: {date_str}. Use YYYY-MM-DD or YYYYMMDD format")
+
+    raise ValueError(f"Invalid date format: {date_str}. Use YYYY-MM-DD or YYYYMMDD format")
+
+
 def parse_args():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(
-        description="Claude Code Wrapped - Analyze your Claude Code usage"
+        description="Claude Code Usage Reports - Analyze your Claude Code usage"
     )
     parser.add_argument(
-        "--year",
-        type=int,
-        default=datetime.now().year,
-        help="Year to analyze (default: current year)"
+        "--version",
+        action="version",
+        version="commandcenter 2.1.0"
+    )
+
+    # Default dates
+    now = datetime.now()
+    default_from = f"{now.year}-01-01"
+    default_to = now.strftime('%Y-%m-%d')
+
+    parser.add_argument(
+        "--from",
+        dest="date_from",
+        type=str,
+        default=default_from,
+        help=f"Start date in YYYY-MM-DD or YYYYMMDD format (default: {default_from})"
+    )
+    parser.add_argument(
+        "--to",
+        dest="date_to",
+        type=str,
+        default=default_to,
+        help=f"End date in YYYY-MM-DD or YYYYMMDD format (default: today)"
     )
     parser.add_argument(
         "--force-rescan",
@@ -51,7 +104,23 @@ def parse_args():
         action="store_true",
         help="Show database statistics and exit"
     )
-    return parser.parse_args()
+
+    args = parser.parse_args()
+
+    # Parse and validate dates
+    try:
+        args.date_from = parse_date(args.date_from)
+        args.date_to = parse_date(args.date_to)
+    except ValueError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+
+    # Validate date range
+    if args.date_from > args.date_to:
+        console.print(f"[red]Error: Start date ({args.date_from}) must be before end date ({args.date_to})[/red]")
+        sys.exit(1)
+
+    return args
 
 
 def rebuild_database(conn):
@@ -110,23 +179,23 @@ def main():
         else:
             console.print("[green]All files up to date (using cached data)[/green]\n")
 
-        # Query stats for year
-        console.print(f"[bold]Generating wrapped for {args.year}...[/bold]")
-        stats = query_wrapped_stats(conn, args.year)
+        # Query stats for date range
+        console.print(f"[bold]Generating usage report for {args.date_from} to {args.date_to}...[/bold]")
+        stats = query_usage_stats(conn, args.date_from, args.date_to)
 
         if not stats.daily_activity:
-            console.print(f"[red]No activity found for {args.year}[/red]")
+            console.print(f"[red]No activity found for date range {args.date_from} to {args.date_to}[/red]")
             sys.exit(1)
 
         # Generate PNG
         console.print("Generating PNG image...")
-        png_bytes = generate_wrapped_png(stats)
+        png_bytes = generate_usage_report_png(stats)
 
         # Display in terminal
         display_png_in_terminal(png_bytes)
 
         # Save to file
-        filename = f"cc-wrapped-{args.year}.png"
+        filename = f"cc-usage-report-{args.date_from}_{args.date_to}.png"
         with open(filename, 'wb') as f:
             f.write(png_bytes)
 

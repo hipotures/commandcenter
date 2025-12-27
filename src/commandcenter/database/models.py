@@ -76,9 +76,10 @@ class FileStatus:
 
 
 @dataclass
-class WrappedStats:
-    """Statistics for wrapped report generation"""
-    year: int
+class UsageStats:
+    """Statistics for usage report generation"""
+    date_from: str  # YYYY-MM-DD
+    date_to: str  # YYYY-MM-DD
     daily_activity: dict[str, int]  # date → message_count
     top_models: list[dict]  # [{model, tokens, messages, cost}, ...]
     total_messages: int

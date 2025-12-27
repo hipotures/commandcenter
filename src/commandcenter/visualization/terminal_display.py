@@ -26,7 +26,7 @@ def display_kitty_protocol(png_bytes: bytes):
 def display_iterm2_protocol(png_bytes: bytes):
     """Display PNG using iTerm2 Inline Images Protocol"""
     b64_data = base64.b64encode(png_bytes).decode('ascii')
-    filename = base64.b64encode(b"cc-wrapped.png").decode('ascii')
+    filename = base64.b64encode(b"cc-usage-report.png").decode('ascii')
 
     # OSC 1337 ; File=[args] : base64data ST
     sys.stdout.write(f"\x1b]1337;File=name={filename};size={len(png_bytes)};inline=1:{b64_data}\x07\n")

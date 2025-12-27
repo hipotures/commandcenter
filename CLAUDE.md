@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Command Center is a SQLite-based analytics tool for Claude Code usage data. It processes JSONL session logs from `~/.claude/sessions/`, performs intelligent incremental updates, and generates "wrapped" reports (PNG + terminal display).
+Command Center is a SQLite-based analytics tool for Claude Code usage data. It processes JSONL session logs from `~/.claude/sessions/`, performs intelligent incremental updates, and generates usage reports (PNG + terminal display) for specified date ranges.
 
 ## Development Commands
 
@@ -22,11 +22,14 @@ source .venv/bin/activate
 ### Running the Tool
 
 ```bash
-# Generate wrapped for current year
+# Generate report for current year
 commandcenter --verbose
 
-# Generate for specific year
-commandcenter --year 2024
+# Generate report for specific date range
+commandcenter --from 2024-01-01 --to 2024-12-31
+
+# Generate report with compact date format
+commandcenter --from 20250101 --to 20250228
 
 # Show database statistics
 commandcenter --db-stats
@@ -104,7 +107,7 @@ uv run commandcenter --verbose
 - Storage: `timestamp_local` (ISO 8601), `year`, `date` (YYYY-MM-DD)
 - Aggregation: All hourly/daily stats use local time
 
-This ensures wrapped reports match user's actual working hours.
+This ensures usage reports match user's actual working hours.
 
 ### Deduplication Strategy
 
@@ -145,7 +148,7 @@ Key dataclasses in `database/models.py`:
 - `MessageEntry`: Individual message with tokens and cost
 - `HourlyAggregate`: Pre-computed hourly stats
 - `ModelAggregate`: Per-model statistics
-- `WrappedStats`: Final output for visualization
+- `UsageStats`: Final output for visualization (with date_from, date_to)
 - `FileTrack`: File processing metadata
 
 ## Important Constraints

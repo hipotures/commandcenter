@@ -5,7 +5,7 @@ import sqlite3
 from typing import Optional
 from datetime import datetime
 
-from commandcenter.database.models import MessageEntry, WrappedStats
+from commandcenter.database.models import MessageEntry, UsageStats
 from commandcenter.config import BATCH_INSERT_SIZE
 
 
@@ -147,9 +147,13 @@ def recompute_model_aggregates(conn: sqlite3.Connection, year: int):
     conn.commit()
 
 
-def query_daily_stats(conn: sqlite3.Connection, year: int) -> dict[str, int]:
+def query_daily_stats(conn: sqlite3.Connection, date_from: str, date_to: str) -> dict[str, int]:
     """
     Query daily statistics from hourly aggregates.
+
+    Args:
+        date_from: Start date (YYYY-MM-DD)
+        date_to: End date (YYYY-MM-DD)
 
     Returns:
         Dict mapping date (YYYY-MM-DD) → message_count
@@ -158,31 +162,43 @@ def query_daily_stats(conn: sqlite3.Connection, year: int) -> dict[str, int]:
     cursor.execute("""
         SELECT date, SUM(message_count)
         FROM hourly_aggregates
-        WHERE year = ?
+        WHERE date >= ? AND date <= ?
         GROUP BY date
         ORDER BY date
-    """, (year,))
+    """, (date_from, date_to))
 
     return {row[0]: row[1] for row in cursor.fetchall()}
 
 
-def query_wrapped_stats(conn: sqlite3.Connection, year: int) -> WrappedStats:
+def query_usage_stats(conn: sqlite3.Connection, date_from: str, date_to: str) -> UsageStats:
     """
-    Query all statistics needed for wrapped report.
+    Query all statistics needed for usage report.
+
+    Args:
+        date_from: Start date (YYYY-MM-DD)
+        date_to: End date (YYYY-MM-DD)
+
+    Returns:
+        UsageStats object with all statistics for the date range
     """
     cursor = conn.cursor()
 
     # Daily activity
-    daily_activity = query_daily_stats(conn, year)
+    daily_activity = query_daily_stats(conn, date_from, date_to)
 
-    # Top models
+    # Top models (aggregate from message_entries directly for date range)
     cursor.execute("""
-        SELECT model, total_tokens, message_count, total_cost_usd
-        FROM model_aggregates
-        WHERE year = ?
+        SELECT
+            model,
+            SUM(total_tokens) as total_tokens,
+            COUNT(*) as message_count,
+            SUM(COALESCE(cost_usd, 0)) as total_cost
+        FROM message_entries
+        WHERE date >= ? AND date <= ? AND model IS NOT NULL
+        GROUP BY model
         ORDER BY total_tokens DESC
         LIMIT 3
-    """, (year,))
+    """, (date_from, date_to))
     top_models = [
         {"model": row[0], "tokens": row[1], "messages": row[2], "cost": row[3]}
         for row in cursor.fetchall()
@@ -199,8 +215,8 @@ def query_wrapped_stats(conn: sqlite3.Connection, year: int) -> WrappedStats:
             SUM(cache_write_tokens) as cache_write,
             MIN(timestamp) as first_timestamp
         FROM message_entries
-        WHERE year = ?
-    """, (year,))
+        WHERE date >= ? AND date <= ?
+    """, (date_from, date_to))
     row = cursor.fetchone()
 
     first_timestamp = None
@@ -210,8 +226,9 @@ def query_wrapped_stats(conn: sqlite3.Connection, year: int) -> WrappedStats:
         except:
             pass
 
-    return WrappedStats(
-        year=year,
+    return UsageStats(
+        date_from=date_from,
+        date_to=date_to,
         daily_activity=daily_activity,
         top_models=top_models,
         total_messages=row[0] or 0,
