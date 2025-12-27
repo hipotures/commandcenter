@@ -7,50 +7,20 @@ use serde_json::Value;
 use crate::python_bridge::call_python_api;
 
 // ============================================================================
-// Request/Response Types
-// ============================================================================
-
-#[derive(Debug, Deserialize)]
-pub struct DashboardParams {
-    pub from: String,
-    pub to: String,
-    #[serde(default)]
-    pub refresh: bool,
-    #[serde(default = "default_granularity")]
-    pub granularity: String,
-}
-
-fn default_granularity() -> String {
-    "month".to_string()
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DayParams {
-    pub date: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ModelParams {
-    pub model: String,
-    pub from: String,
-    pub to: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SessionParams {
-    #[serde(rename = "sessionId")]
-    pub session_id: String,
-}
-
-// ============================================================================
 // Tauri Commands
 // ============================================================================
+//
+// Note: Commands use individual parameters instead of structs for simpler
+// frontend integration with Tauri v2 invoke API.
 
 /// Get complete dashboard bundle with all statistics.
 ///
 /// # Arguments
 ///
-/// * `params` - Dashboard query parameters (date range, refresh flag, granularity)
+/// * `from` - Start date (YYYY-MM-DD)
+/// * `to` - End date (YYYY-MM-DD)
+/// * `refresh` - Whether to perform incremental update
+/// * `granularity` - Timeline granularity (month/week/day)
 ///
 /// # Returns
 ///
@@ -63,19 +33,24 @@ pub struct SessionParams {
 /// - hourly_profile: 24-hour activity profile
 /// - recent_sessions: latest sessions
 #[tauri::command]
-pub async fn get_dashboard_bundle(params: DashboardParams) -> Result<Value, String> {
-    let refresh_str = if params.refresh { "1" } else { "0" };
+pub async fn get_dashboard_bundle(
+    from: String,
+    to: String,
+    refresh: bool,
+    granularity: String,
+) -> Result<Value, String> {
+    let refresh_str = if refresh { "1" } else { "0" };
 
     call_python_api(&[
         "dashboard",
         "--from",
-        &params.from,
+        &from,
         "--to",
-        &params.to,
+        &to,
         "--refresh",
         refresh_str,
         "--granularity",
-        &params.granularity,
+        &granularity,
     ])
 }
 
@@ -83,7 +58,7 @@ pub async fn get_dashboard_bundle(params: DashboardParams) -> Result<Value, Stri
 ///
 /// # Arguments
 ///
-/// * `params` - Day query parameters (date)
+/// * `date` - Date (YYYY-MM-DD)
 ///
 /// # Returns
 ///
@@ -94,15 +69,17 @@ pub async fn get_dashboard_bundle(params: DashboardParams) -> Result<Value, Stri
 /// - models: model distribution for the day
 /// - sessions: sessions active on the day
 #[tauri::command]
-pub async fn get_day_details(params: DayParams) -> Result<Value, String> {
-    call_python_api(&["day", "--date", &params.date])
+pub async fn get_day_details(date: String) -> Result<Value, String> {
+    call_python_api(&["day", "--date", &date])
 }
 
 /// Get detailed statistics for a specific model.
 ///
 /// # Arguments
 ///
-/// * `params` - Model query parameters (model name, date range)
+/// * `model` - Model identifier
+/// * `from` - Start date (YYYY-MM-DD)
+/// * `to` - End date (YYYY-MM-DD)
 ///
 /// # Returns
 ///
@@ -114,15 +91,19 @@ pub async fn get_day_details(params: DayParams) -> Result<Value, String> {
 /// - daily_activity: daily breakdown
 /// - sessions: top sessions for this model
 #[tauri::command]
-pub async fn get_model_details(params: ModelParams) -> Result<Value, String> {
+pub async fn get_model_details(
+    model: String,
+    from: String,
+    to: String,
+) -> Result<Value, String> {
     call_python_api(&[
         "model",
         "--model",
-        &params.model,
+        &model,
         "--from",
-        &params.from,
+        &from,
         "--to",
-        &params.to,
+        &to,
     ])
 }
 
@@ -130,7 +111,7 @@ pub async fn get_model_details(params: ModelParams) -> Result<Value, String> {
 ///
 /// # Arguments
 ///
-/// * `params` - Session query parameters (session ID)
+/// * `session_id` - Session identifier
 ///
 /// # Returns
 ///
@@ -143,8 +124,8 @@ pub async fn get_model_details(params: ModelParams) -> Result<Value, String> {
 /// - totals: aggregate statistics
 /// - messages: individual message breakdowns
 #[tauri::command]
-pub async fn get_session_details(params: SessionParams) -> Result<Value, String> {
-    call_python_api(&["session", "--id", &params.session_id])
+pub async fn get_session_details(session_id: String) -> Result<Value, String> {
+    call_python_api(&["session", "--id", &session_id])
 }
 
 #[cfg(test)]

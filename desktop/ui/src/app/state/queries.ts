@@ -11,6 +11,35 @@ import type {
   Granularity,
 } from '../types/api';
 
+// Check if running in Tauri
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+// Map Tauri command names to browser API paths
+const ENDPOINT_MAP: Record<string, string> = {
+  get_dashboard_bundle: 'dashboard',
+  get_day_details: 'day',
+  get_model_details: 'model',
+  get_session_details: 'session',
+};
+
+// API adapter - uses Tauri invoke in desktop, fetch in browser
+async function apiCall<T>(endpoint: string, params: Record<string, any>): Promise<T> {
+  if (isTauri) {
+    return invoke<T>(endpoint, params);
+  } else {
+    // Browser mode - use Vite dev server API
+    const apiPath = ENDPOINT_MAP[endpoint] || endpoint;
+    const queryParams = new URLSearchParams(
+      Object.entries(params).map(([k, v]) => [k, String(v)])
+    ).toString();
+    const response = await fetch(`/api/${apiPath}?${queryParams}`);
+    if (!response.ok) {
+      throw new Error(`API error: ${response.statusText}`);
+    }
+    return response.json();
+  }
+}
+
 // Dashboard bundle query
 export function useDashboard(
   from: string,
@@ -21,9 +50,14 @@ export function useDashboard(
   return useQuery({
     queryKey: ['dashboard', from, to, refresh, granularity],
     queryFn: async () => {
-      const result = await invoke<DashboardBundle>('get_dashboard_bundle', {
-        params: { from, to, refresh, granularity },
+      console.log('[Dashboard] isTauri:', isTauri, 'params:', { from, to, refresh, granularity });
+      const result = await apiCall<DashboardBundle>('get_dashboard_bundle', {
+        from,
+        to,
+        refresh,
+        granularity,
       });
+      console.log('[Dashboard] Got result');
       return result;
     },
     staleTime: 30_000, // 30 seconds
@@ -35,12 +69,7 @@ export function useDashboard(
 export function useDayDetails(date: string | null) {
   return useQuery({
     queryKey: ['day', date],
-    queryFn: async () => {
-      const result = await invoke<DayDetails>('get_day_details', {
-        params: { date: date! },
-      });
-      return result;
-    },
+    queryFn: () => apiCall<DayDetails>('get_day_details', { date: date! }),
     enabled: !!date,
     staleTime: 60_000, // 1 minute
   });
@@ -54,12 +83,12 @@ export function useModelDetails(
 ) {
   return useQuery({
     queryKey: ['model', model, from, to],
-    queryFn: async () => {
-      const result = await invoke<ModelDetails>('get_model_details', {
-        params: { model: model!, from, to },
-      });
-      return result;
-    },
+    queryFn: () =>
+      apiCall<ModelDetails>('get_model_details', {
+        model: model!,
+        from,
+        to,
+      }),
     enabled: !!model,
     staleTime: 60_000, // 1 minute
   });
@@ -69,12 +98,10 @@ export function useModelDetails(
 export function useSessionDetails(sessionId: string | null) {
   return useQuery({
     queryKey: ['session', sessionId],
-    queryFn: async () => {
-      const result = await invoke<SessionDetails>('get_session_details', {
-        params: { sessionId: sessionId! },
-      });
-      return result;
-    },
+    queryFn: () =>
+      apiCall<SessionDetails>('get_session_details', {
+        sessionId: sessionId!,
+      }),
     enabled: !!sessionId,
     staleTime: 300_000, // 5 minutes
   });

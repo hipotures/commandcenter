@@ -21,23 +21,68 @@ use std::process::Command;
 /// let result = call_python_api(&["dashboard", "--from", "2025-01-01", "--to", "2025-12-27"]);
 /// ```
 pub fn call_python_api(args: &[&str]) -> Result<Value, String> {
-    // Execute Python module
-    let output = Command::new("python")
-        .arg("-m")
-        .arg("command_center.tauri_api")
-        .args(args)
-        .output()
-        .map_err(|e| format!("Failed to execute Python: {}", e))?;
+    use log::info;
 
-    // Check exit status
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Python error: {}", stderr));
+    // Log the command being executed
+    info!("Executing: python -m command_center.tauri_api {}", args.join(" "));
+
+    // Execute Python module - try multiple Python commands
+    let python_commands = vec!["python", "python3", "uv run python"];
+    let mut last_error = String::new();
+
+    for python_cmd in &python_commands {
+        let cmd_parts: Vec<&str> = python_cmd.split_whitespace().collect();
+        let mut command = if cmd_parts.len() > 1 {
+            // For "uv run python"
+            let mut cmd = Command::new(cmd_parts[0]);
+            for part in &cmd_parts[1..] {
+                cmd.arg(part);
+            }
+            cmd
+        } else {
+            // For "python" or "python3"
+            Command::new(cmd_parts[0])
+        };
+
+        command.arg("-m")
+               .arg("command_center.tauri_api")
+               .args(args);
+
+        match command.output() {
+            Ok(output) => {
+                // Check exit status
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    last_error = format!("Python error ({}): {}", python_cmd, stderr);
+                    info!("Failed with {}: {}", python_cmd, stderr);
+                    continue;
+                }
+
+                // Parse JSON from stdout
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                info!("Python stdout length: {} bytes", stdout.len());
+
+                match serde_json::from_str(&stdout) {
+                    Ok(json) => {
+                        info!("Successfully parsed JSON from {}", python_cmd);
+                        return Ok(json);
+                    }
+                    Err(e) => {
+                        last_error = format!("JSON parse error: {} | stdout: {}", e, stdout);
+                        info!("JSON parse error: {}", e);
+                        continue;
+                    }
+                }
+            }
+            Err(e) => {
+                last_error = format!("Failed to execute {}: {}", python_cmd, e);
+                info!("Failed to execute {}: {}", python_cmd, e);
+                continue;
+            }
+        }
     }
 
-    // Parse JSON from stdout
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&stdout).map_err(|e| format!("JSON parse error: {}", e))
+    Err(last_error)
 }
 
 #[cfg(test)]
