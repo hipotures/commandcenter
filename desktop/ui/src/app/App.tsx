@@ -1,364 +1,1278 @@
-/**
- * Main Application Component - Full Dashboard with Charts and Drill-down
- */
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useAppStore } from './state/store';
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
+import {
+  MessageSquare, Users, Coins, Zap, Flame, Database,
+  Calendar, TrendingUp, Clock, Cpu, ChevronDown, Download,
+  RefreshCw, Settings, Search, ArrowUpRight, ArrowDownRight
+} from 'lucide-react';
 import { useDashboard } from './state/queries';
-import { Header } from './components/Header';
-import { TimelineChart } from './components/charts/TimelineChart';
-import { HourlyChart } from './components/charts/HourlyChart';
-import { ModelPieChart } from './components/charts/ModelPieChart';
-import { Heatmap } from './components/charts/Heatmap';
-import { DayDrawer } from './components/drawers/DayDrawer';
-import { ModelDrawer } from './components/drawers/ModelDrawer';
-import { SessionDrawer } from './components/drawers/SessionDrawer';
-import './styles/tokens.css';
-import './styles/global.css';
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLAUDE CODE DESIGN TOKENS
+// ═══════════════════════════════════════════════════════════════════════════════
+const tokens = {
+  colors: {
+    background: '#F7F1E9',
+    surface: '#FFF9F2',
+    surfaceBorder: '#E8D7C6',
+    textPrimary: '#2B1D13',
+    textSecondary: '#4A3426',
+    textTertiary: '#6B5142',
+    textMuted: '#8A7264',
+    accentPrimary: '#D97757',
+    accentSecondary: '#C4623F',
+    semanticSuccess: '#22C55E',
+    semanticWarning: '#F59E0B',
+    semanticError: '#EF4444',
+    heatmap: ['#F0E6DC', '#E6D6C8', '#D9C1AE', '#CBA590', '#BC8873', '#AE6E5B', '#9A5647'],
+  },
+  shadows: {
+    sm: '0 1px 2px 0 rgba(43, 29, 19, 0.05)',
+    md: '0 4px 6px -1px rgba(43, 29, 19, 0.07), 0 2px 4px -2px rgba(43, 29, 19, 0.05)',
+    lg: '0 10px 15px -3px rgba(43, 29, 19, 0.08), 0 4px 6px -4px rgba(43, 29, 19, 0.04)',
+  }
+};
+
+// Query Client for React Query
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
+      retry: 2,
+      staleTime: 30_000,
     },
   },
 });
 
-function Dashboard() {
-  const {
-    darkMode,
-    dateFrom,
-    dateTo,
-    granularity,
-    liveMode,
-    liveInterval,
-    selectedDay,
-    selectedModel,
-    selectedSession,
-    setSelectedDay,
-    setSelectedModel,
-    setSelectedSession,
-  } = useAppStore();
+// ═══════════════════════════════════════════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+const formatNumber = (num: number): string => {
+  if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+  if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+  if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+  return num.toLocaleString();
+};
 
-  const [refresh, setRefresh] = useState(false);
-  const { data, isLoading, error, refetch, isFetching } = useDashboard(
-    dateFrom,
-    dateTo,
-    refresh,
-    granularity
-  );
+const formatCurrency = (num: number): string => {
+  return '$' + num.toFixed(2);
+};
 
-  // Apply dark mode
-  useEffect(() => {
-    document.documentElement.setAttribute(
-      'data-theme',
-      darkMode ? 'dark' : 'light'
-    );
-  }, [darkMode]);
+// ═══════════════════════════════════════════════════════════════════════════════
+// KPI CARD COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+const KPICard = ({ title, value, subtitle, trend, icon: Icon, accentColor = tokens.colors.accentPrimary }: any) => (
+  <div style={{
+    background: tokens.colors.surface,
+    border: `1px solid ${tokens.colors.surfaceBorder}`,
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: tokens.shadows.md,
+    transition: 'all 0.3s ease',
+    cursor: 'pointer',
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = 'translateY(-2px)';
+    e.currentTarget.style.boxShadow = tokens.shadows.lg;
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = tokens.shadows.md;
+  }}
+  >
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '8px',
+        color: tokens.colors.textMuted,
+        fontSize: '13px',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+      }}>
+        <Icon size={16} />
+        {title}
+      </div>
+      {trend !== undefined && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          fontSize: '12px',
+          fontWeight: '600',
+          color: trend >= 0 ? tokens.colors.semanticSuccess : tokens.colors.semanticError,
+          background: trend >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+          padding: '4px 8px',
+          borderRadius: '20px',
+        }}>
+          {trend >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+          {Math.abs(trend)}%
+        </div>
+      )}
+    </div>
+    <div style={{ 
+      fontSize: '32px', 
+      fontWeight: '700', 
+      color: accentColor,
+      fontFamily: "'DM Mono', 'SF Mono', monospace",
+      letterSpacing: '-1px',
+    }}>
+      {value}
+    </div>
+    {subtitle && (
+      <div style={{ 
+        fontSize: '13px', 
+        color: tokens.colors.textMuted,
+        marginTop: '8px',
+      }}>
+        {subtitle}
+      </div>
+    )}
+  </div>
+);
 
-  // Live mode polling
-  useEffect(() => {
-    if (!liveMode) return;
-    const interval = setInterval(() => {
-      setRefresh(true);
-      refetch().then(() => setRefresh(false));
-    }, liveInterval * 1000);
-    return () => clearInterval(interval);
-  }, [liveMode, liveInterval, refetch]);
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIVITY HEATMAP COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
+  const [hoveredDay, setHoveredDay] = useState<string | null>(null);
 
-  const handleRefresh = () => {
-    setRefresh(true);
-    refetch().then(() => setRefresh(false));
+  const { weeks, maxCount } = useMemo(() => {
+    // Fill in missing dates with 0 counts
+    const filledData: { [key: string]: number } = {};
+    const start = new Date(dateFrom);
+    const end = new Date(dateTo);
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      filledData[dateStr] = data[dateStr] || 0;
+    }
+
+    const entries = Object.entries(filledData).sort(([a], [b]) => a.localeCompare(b));
+    const max = Math.max(...Object.values(filledData).map((v: any) => v as number), 1); // At least 1 to avoid division by 0
+
+    // Group into weeks
+    const weeksArr: any[] = [];
+    let currentWeek: any[] = [];
+
+    entries.forEach(([date, count], idx) => {
+      const dayOfWeek = new Date(date).getDay();
+
+      // Start new week on Sunday
+      if (dayOfWeek === 0 && currentWeek.length > 0) {
+        weeksArr.push(currentWeek);
+        currentWeek = [];
+      }
+
+      currentWeek.push({ date, count, dayOfWeek });
+
+      if (idx === entries.length - 1) {
+        weeksArr.push(currentWeek);
+      }
+    });
+
+    // Show all weeks (not just last 53)
+    return { weeks: weeksArr, maxCount: max };
+  }, [data, dateFrom, dateTo]);
+
+  const getHeatLevel = (count: number) => {
+    if (count === 0) return 0;
+    const ratio = count / maxCount;
+    if (ratio <= 0.1) return 1;
+    if (ratio <= 0.25) return 2;
+    if (ratio <= 0.4) return 3;
+    if (ratio <= 0.6) return 4;
+    if (ratio <= 0.8) return 5;
+    return 6;
   };
+
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  return (
+    <div style={{
+      background: tokens.colors.surface,
+      border: `1px solid ${tokens.colors.surfaceBorder}`,
+      borderRadius: '16px',
+      padding: '24px',
+      boxShadow: tokens.shadows.md,
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '8px', 
+        marginBottom: '20px',
+        color: tokens.colors.textPrimary,
+        fontSize: '16px',
+        fontWeight: '600',
+      }}>
+        <Calendar size={20} style={{ color: tokens.colors.accentPrimary }} />
+        Activity Heatmap
+      </div>
+      
+      {/* Month labels */}
+      <div style={{ display: 'flex', marginLeft: '36px', marginBottom: '8px' }}>
+        {weeks.map((week, idx) => {
+          if (idx % 4 === 0 && week[0]) {
+            const month = new Date(week[0].date).getMonth();
+            return (
+              <div key={idx} style={{ 
+                width: '52px', 
+                fontSize: '11px', 
+                color: tokens.colors.textMuted,
+                fontWeight: '500',
+              }}>
+                {monthLabels[month]}
+              </div>
+            );
+          }
+          return null;
+        })}
+      </div>
+      
+      <div style={{ display: 'flex', gap: '4px' }}>
+        {/* Day labels */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginRight: '8px' }}>
+          {dayLabels.map((day, idx) => (
+            <div key={day} style={{ 
+              height: '13px', 
+              fontSize: '10px', 
+              color: tokens.colors.textMuted,
+              display: 'flex',
+              alignItems: 'center',
+              fontWeight: '500',
+            }}>
+              {idx % 2 === 1 ? day : ''}
+            </div>
+          ))}
+        </div>
+        
+        {/* Heatmap grid */}
+        <div style={{ display: 'flex', gap: '3px', position: 'relative' }}>
+          {weeks.map((week, weekIdx) => (
+            <div key={weekIdx} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              {Array.from({ length: 7 }, (_: any, dayIdx: number) => {
+                const day = week.find((d: any) => d.dayOfWeek === dayIdx);
+                if (!day) return <div key={dayIdx} style={{ width: '13px', height: '13px' }} />;
+                
+                const level = getHeatLevel(day.count);
+                return (
+                  <div
+                    key={dayIdx}
+                    style={{
+                      width: '13px',
+                      height: '13px',
+                      borderRadius: '3px',
+                      backgroundColor: tokens.colors.heatmap[level],
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s ease',
+                      transform: hoveredDay === day.date ? 'scale(1.3)' : 'scale(1)',
+                    }}
+                    onMouseEnter={() => setHoveredDay(day.date)}
+                    onMouseLeave={() => setHoveredDay(null)}
+                    title={`${day.date}: ${day.count} messages`}
+                  />
+                );
+              })}
+            </div>
+          ))}
+          
+          {/* Tooltip */}
+          {hoveredDay && (
+            <div style={{
+              position: 'absolute',
+              top: '-45px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: tokens.colors.textPrimary,
+              color: tokens.colors.surface,
+              padding: '8px 12px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: '500',
+              whiteSpace: 'nowrap',
+              zIndex: 10,
+              boxShadow: tokens.shadows.lg,
+            }}>
+              {hoveredDay}: {data[hoveredDay]} messages
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Legend */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '8px', 
+        marginTop: '16px',
+        marginLeft: '36px',
+      }}>
+        <span style={{ fontSize: '11px', color: tokens.colors.textMuted }}>Less</span>
+        {tokens.colors.heatmap.map((color: string, idx: number) => (
+          <div
+            key={idx}
+            style={{
+              width: '13px',
+              height: '13px',
+              borderRadius: '3px',
+              backgroundColor: color,
+            }}
+          />
+        ))}
+        <span style={{ fontSize: '11px', color: tokens.colors.textMuted }}>More</span>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODEL DISTRIBUTION CHART
+// ═══════════════════════════════════════════════════════════════════════════════
+const ModelDistribution = ({ data }: any) => {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  
+  const chartColors = [
+    tokens.colors.accentPrimary,
+    tokens.colors.accentSecondary,
+    tokens.colors.heatmap[4],
+  ];
+
+  const totalTokens = data.reduce((sum: number, m: any) => sum + m.tokens, 0);
+
+  return (
+    <div style={{
+      background: tokens.colors.surface,
+      border: `1px solid ${tokens.colors.surfaceBorder}`,
+      borderRadius: '16px',
+      padding: '24px',
+      boxShadow: tokens.shadows.md,
+      height: '100%',
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '8px', 
+        marginBottom: '20px',
+        color: tokens.colors.textPrimary,
+        fontSize: '16px',
+        fontWeight: '600',
+      }}>
+        <Cpu size={20} style={{ color: tokens.colors.accentPrimary }} />
+        Model Distribution
+      </div>
+      
+      <div style={{ height: '200px' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="tokens"
+              nameKey="displayName"
+              cx="50%"
+              cy="50%"
+              innerRadius={55}
+              outerRadius={80}
+              paddingAngle={3}
+              onMouseEnter={(_, idx) => setActiveIndex(idx)}
+              onMouseLeave={() => setActiveIndex(null)}
+            >
+              {data.map((_: any, idx: number) => (
+                <Cell 
+                  key={idx} 
+                  fill={chartColors[idx]}
+                  style={{
+                    filter: activeIndex === idx ? 'brightness(1.1)' : 'none',
+                    transform: activeIndex === idx ? 'scale(1.05)' : 'scale(1)',
+                    transformOrigin: 'center',
+                    transition: 'all 0.2s ease',
+                  }}
+                />
+              ))}
+            </Pie>
+            <Tooltip 
+              content={({ payload }) => {
+                if (!payload || !payload[0]) return null;
+                const item = payload[0].payload;
+                return (
+                  <div style={{
+                    background: tokens.colors.textPrimary,
+                    color: tokens.colors.surface,
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    boxShadow: tokens.shadows.lg,
+                  }}>
+                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>{item.displayName}</div>
+                    <div>{formatNumber(item.tokens)} tokens</div>
+                    <div style={{ color: tokens.colors.heatmap[2] }}>{formatCurrency(item.cost)}</div>
+                  </div>
+                );
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      
+      {/* Legend */}
+      <div style={{ marginTop: '16px' }}>
+        {data.map((model: any, idx: number) => (
+          <div 
+            key={model.model}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 0',
+              borderBottom: idx < data.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '4px',
+                backgroundColor: chartColors[idx],
+              }} />
+              <span style={{ fontSize: '14px', fontWeight: '500', color: tokens.colors.textSecondary }}>
+                {model.displayName}
+              </span>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: tokens.colors.accentPrimary }}>
+                {((model.tokens / totalTokens) * 100).toFixed(1)}%
+              </div>
+              <div style={{ fontSize: '11px', color: tokens.colors.textMuted }}>
+                {formatNumber(model.tokens)} tok
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTIVITY TIMELINE CHART
+// ═══════════════════════════════════════════════════════════════════════════════
+const ActivityTimeline = ({ data }: any) => {
+  const [metric, setMetric] = useState('messages');
+  
+  const metrics = [
+    { key: 'messages', label: 'Messages', color: tokens.colors.accentPrimary },
+    { key: 'tokens', label: 'Tokens', color: tokens.colors.heatmap[5] },
+    { key: 'cost', label: 'Cost', color: tokens.colors.semanticSuccess },
+  ];
+
+  return (
+    <div style={{
+      background: tokens.colors.surface,
+      border: `1px solid ${tokens.colors.surfaceBorder}`,
+      borderRadius: '16px',
+      padding: '24px',
+      boxShadow: tokens.shadows.md,
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        marginBottom: '20px',
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px',
+          color: tokens.colors.textPrimary,
+          fontSize: '16px',
+          fontWeight: '600',
+        }}>
+          <TrendingUp size={20} style={{ color: tokens.colors.accentPrimary }} />
+          Activity Timeline
+        </div>
+        
+        {/* Metric selector */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {metrics.map(m => (
+            <button
+              key={m.key}
+              onClick={() => setMetric(m.key)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '20px',
+                border: 'none',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                backgroundColor: metric === m.key ? tokens.colors.accentPrimary : 'transparent',
+                color: metric === m.key ? tokens.colors.surface : tokens.colors.textMuted,
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      
+      <div style={{ height: '280px' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={tokens.colors.accentPrimary} stopOpacity={0.3}/>
+                <stop offset="95%" stopColor={tokens.colors.accentPrimary} stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} />
+            <XAxis 
+              dataKey="month" 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: tokens.colors.textMuted, fontSize: 12 }}
+            />
+            <YAxis 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: tokens.colors.textMuted, fontSize: 12 }}
+              tickFormatter={(val) => formatNumber(val)}
+            />
+            <Tooltip
+              contentStyle={{
+                background: tokens.colors.textPrimary,
+                border: 'none',
+                borderRadius: '8px',
+                boxShadow: tokens.shadows.lg,
+              }}
+              labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
+              itemStyle={{ color: tokens.colors.heatmap[2] }}
+              formatter={(val: any) => [metric === 'cost' ? formatCurrency(val) : formatNumber(val), metrics.find(m => m.key === metric)?.label]}
+            />
+            <Area
+              type="monotone"
+              dataKey={metric}
+              stroke={tokens.colors.accentPrimary}
+              strokeWidth={3}
+              fill="url(#colorGradient)"
+              dot={{ fill: tokens.colors.accentPrimary, strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, fill: tokens.colors.accentPrimary, stroke: tokens.colors.surface, strokeWidth: 2 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HOURLY PATTERNS CHART
+// ═══════════════════════════════════════════════════════════════════════════════
+const HourlyPatterns = ({ data }: any) => {
+  const peakHour = data.reduce((max: any, curr: any) => curr.activity > max.activity ? curr : max, data[0]);
+  
+  return (
+    <div style={{
+      background: tokens.colors.surface,
+      border: `1px solid ${tokens.colors.surfaceBorder}`,
+      borderRadius: '16px',
+      padding: '24px',
+      boxShadow: tokens.shadows.md,
+      height: '100%',
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '8px', 
+        marginBottom: '20px',
+        color: tokens.colors.textPrimary,
+        fontSize: '16px',
+        fontWeight: '600',
+      }}>
+        <Clock size={20} style={{ color: tokens.colors.accentPrimary }} />
+        Hourly Patterns
+      </div>
+      
+      <div style={{ height: '200px' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} vertical={false} />
+            <XAxis 
+              dataKey="hour"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
+              interval={2}
+            />
+            <YAxis 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
+            />
+            <Tooltip
+              contentStyle={{
+                background: tokens.colors.textPrimary,
+                border: 'none',
+                borderRadius: '8px',
+                boxShadow: tokens.shadows.lg,
+              }}
+              labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
+              itemStyle={{ color: tokens.colors.heatmap[2] }}
+              formatter={(val) => [val + ' messages', 'Activity']}
+            />
+            <Bar 
+              dataKey="activity" 
+              fill={tokens.colors.accentPrimary}
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginTop: '16px',
+        padding: '12px',
+        background: `${tokens.colors.accentPrimary}10`,
+        borderRadius: '8px',
+      }}>
+        <Zap size={16} style={{ color: tokens.colors.accentPrimary }} />
+        <span style={{ fontSize: '13px', color: tokens.colors.textSecondary }}>
+          Peak activity: <strong>{peakHour.hour}</strong> ({peakHour.activity} avg messages)
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CACHE EFFICIENCY COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
+  const hitRate = ((cacheRead / (cacheRead + cacheWrite)) * 100).toFixed(1);
+  
+  return (
+    <div style={{
+      background: tokens.colors.surface,
+      border: `1px solid ${tokens.colors.surfaceBorder}`,
+      borderRadius: '16px',
+      padding: '24px',
+      boxShadow: tokens.shadows.md,
+      height: '100%',
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '8px', 
+        marginBottom: '20px',
+        color: tokens.colors.textPrimary,
+        fontSize: '16px',
+        fontWeight: '600',
+      }}>
+        <Database size={20} style={{ color: tokens.colors.accentPrimary }} />
+        Cache Efficiency
+      </div>
+      
+      {/* Circular progress */}
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '20px 0',
+      }}>
+        <div style={{ position: 'relative', width: '140px', height: '140px' }}>
+          <svg width="140" height="140" style={{ transform: 'rotate(-90deg)' }}>
+            {/* Background circle */}
+            <circle
+              cx="70"
+              cy="70"
+              r="60"
+              fill="none"
+              stroke={tokens.colors.surfaceBorder}
+              strokeWidth="12"
+            />
+            {/* Progress circle */}
+            <circle
+              cx="70"
+              cy="70"
+              r="60"
+              fill="none"
+              stroke={tokens.colors.semanticSuccess}
+              strokeWidth="12"
+              strokeLinecap="round"
+              strokeDasharray={`${(parseFloat(hitRate) / 100) * 377} 377`}
+              style={{ transition: 'stroke-dasharray 1s ease' }}
+            />
+          </svg>
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+          }}>
+            <div style={{ 
+              fontSize: '28px', 
+              fontWeight: '700', 
+              color: tokens.colors.semanticSuccess,
+              fontFamily: "'DM Mono', monospace",
+            }}>
+              {hitRate}%
+            </div>
+            <div style={{ fontSize: '11px', color: tokens.colors.textMuted, fontWeight: '500' }}>
+              HIT RATE
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Stats */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '12px',
+          background: tokens.colors.background,
+          borderRadius: '8px',
+        }}>
+          <span style={{ fontSize: '13px', color: tokens.colors.textMuted }}>Cache Read</span>
+          <span style={{ fontSize: '14px', fontWeight: '600', color: tokens.colors.accentPrimary }}>
+            {formatNumber(cacheRead)} tok
+          </span>
+        </div>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '12px',
+          background: tokens.colors.background,
+          borderRadius: '8px',
+        }}>
+          <span style={{ fontSize: '13px', color: tokens.colors.textMuted }}>Cache Write</span>
+          <span style={{ fontSize: '14px', fontWeight: '600', color: tokens.colors.accentPrimary }}>
+            {formatNumber(cacheWrite)} tok
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SESSIONS TABLE COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+const SessionsTable = ({ sessions }: any) => (
+  <div style={{
+    background: tokens.colors.surface,
+    border: `1px solid ${tokens.colors.surfaceBorder}`,
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: tokens.shadows.md,
+  }}>
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'space-between',
+      marginBottom: '20px',
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '8px',
+        color: tokens.colors.textPrimary,
+        fontSize: '16px',
+        fontWeight: '600',
+      }}>
+        <MessageSquare size={20} style={{ color: tokens.colors.accentPrimary }} />
+        Recent Sessions
+      </div>
+      <button style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '8px 16px',
+        borderRadius: '20px',
+        border: `1px solid ${tokens.colors.surfaceBorder}`,
+        background: 'transparent',
+        color: tokens.colors.textSecondary,
+        fontSize: '13px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+      }}>
+        View All
+        <ChevronDown size={14} />
+      </button>
+    </div>
+    
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            {['Session ID', 'Model', 'Messages', 'Tokens', 'Cost', 'Time'].map(header => (
+              <th key={header} style={{
+                textAlign: 'left',
+                padding: '12px 16px',
+                fontSize: '11px',
+                fontWeight: '600',
+                color: tokens.colors.textMuted,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                borderBottom: `1px solid ${tokens.colors.surfaceBorder}`,
+              }}>
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sessions.map((session: any, idx: number) => (
+            <tr 
+              key={session.id}
+              style={{
+                transition: 'background 0.15s ease',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = tokens.colors.background}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              <td style={{
+                padding: '16px',
+                fontSize: '13px',
+                fontFamily: "'DM Mono', monospace",
+                color: tokens.colors.textSecondary,
+                borderBottom: idx < sessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+              }}>
+                {session.id}...
+              </td>
+              <td style={{
+                padding: '16px',
+                borderBottom: idx < sessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+              }}>
+                <span style={{
+                  display: 'inline-block',
+                  padding: '4px 10px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  background: `${tokens.colors.accentPrimary}15`,
+                  color: tokens.colors.accentPrimary,
+                }}>
+                  {session.model}
+                </span>
+              </td>
+              <td style={{
+                padding: '16px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: tokens.colors.textSecondary,
+                borderBottom: idx < sessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+              }}>
+                {session.messages}
+              </td>
+              <td style={{
+                padding: '16px',
+                fontSize: '14px',
+                color: tokens.colors.textSecondary,
+                borderBottom: idx < sessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+              }}>
+                {formatNumber(session.tokens)}
+              </td>
+              <td style={{
+                padding: '16px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: tokens.colors.semanticSuccess,
+                borderBottom: idx < sessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+              }}>
+                {formatCurrency(session.cost)}
+              </td>
+              <td style={{
+                padding: '16px',
+                fontSize: '13px',
+                color: tokens.colors.textMuted,
+                borderBottom: idx < sessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+              }}>
+                {session.time}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN DASHBOARD COMPONENT WITH REAL DATA
+// ═══════════════════════════════════════════════════════════════════════════════
+function DashboardContent() {
+  const now = new Date();
+  const defaultFrom = `${now.getFullYear()}-01-01`;
+  const defaultTo = now.toISOString().slice(0, 10);
+
+  const [dateRange, setDateRange] = useState({ from: defaultFrom, to: defaultTo });
+
+  const { data: apiData, isLoading, error } = useDashboard(
+    dateRange.from,
+    dateRange.to,
+    false,
+    'month'
+  );
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          color: 'var(--color-text-muted)',
-        }}
-      >
-        Loading...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          gap: 'var(--spacing-lg)',
-        }}
-      >
-        <h2 style={{ color: 'var(--color-error)' }}>Error loading data</h2>
-        <p style={{ color: 'var(--color-text-muted)' }}>
-          {error instanceof Error ? error.message : 'Unknown error'}
-        </p>
-        <button
-          onClick={handleRefresh}
-          style={{
-            padding: 'var(--spacing-sm) var(--spacing-lg)',
-            backgroundColor: 'var(--color-accent-primary)',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            fontWeight: 'var(--font-weight-semibold)',
-            cursor: 'pointer',
-          }}
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  if (!data) return null;
-
-  return (
-    <div style={{ padding: 'var(--spacing-xl)', maxWidth: '1600px', margin: '0 auto' }}>
-      {/* Header with controls */}
-      <Header onRefresh={handleRefresh} isRefreshing={isFetching} />
-
-      {/* KPI Strip */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 'var(--spacing-md)',
-          marginBottom: 'var(--spacing-2xl)',
-        }}
-      >
-        <KPICard label="Messages" value={data.totals.messages.toLocaleString()} />
-        <KPICard label="Sessions" value={data.totals.sessions.toLocaleString()} />
-        <KPICard label="Tokens" value={formatTokens(data.totals.tokens)} />
-        <KPICard label="Cost" value={`$${data.totals.cost.toFixed(2)}`} />
-        <KPICard
-          label="Streak"
-          value={`${data.totals.current_streak}/${data.totals.max_streak}`}
-        />
-      </div>
-
-      {/* Timeline Chart */}
-      <Section title="Token Usage Timeline">
-        <TimelineChart data={data.timeline.data} granularity={granularity} />
-      </Section>
-
-      {/* Two Column Layout */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-          gap: 'var(--spacing-xl)',
-          marginBottom: 'var(--spacing-xl)',
-        }}
-      >
-        {/* Hourly Profile */}
-        <Section title="24-Hour Activity Profile">
-          <HourlyChart data={data.hourly_profile} />
-        </Section>
-
-        {/* Model Distribution */}
-        <Section title="Model Distribution">
-          <ModelPieChart
-            data={data.model_distribution}
-            onModelClick={(model) => setSelectedModel(model)}
-          />
-        </Section>
-      </div>
-
-      {/* Heatmap */}
-      <Section title="Daily Activity Heatmap">
-        <Heatmap
-          data={Object.entries(data.daily_activity).map(([date, messages]) => ({
-            date,
-            messages: messages as number,
-            tokens: messages as number * 1000, // Approximate tokens
-          }))}
-          onDayClick={(day) => setSelectedDay(day)}
-        />
-      </Section>
-
-      {/* Recent Sessions Table */}
-      <Section title="Recent Sessions">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                <th style={tableHeaderStyle}>Session ID</th>
-                <th style={tableHeaderStyle}>Model</th>
-                <th style={tableHeaderStyle}>Messages</th>
-                <th style={tableHeaderStyle}>Tokens</th>
-                <th style={tableHeaderStyle}>Cost</th>
-                <th style={tableHeaderStyle}>Last Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.recent_sessions.slice(0, 15).map((session) => (
-                <tr
-                  key={session.session_id}
-                  onClick={() => setSelectedSession(session.session_id)}
-                  style={{
-                    borderBottom: '1px solid var(--color-border)',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-surface)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  <td style={tableCellStyle}>
-                    <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                      {session.session_id.slice(0, 12)}...
-                    </code>
-                  </td>
-                  <td style={tableCellStyle}>{session.display_name}</td>
-                  <td style={tableCellStyle}>{session.messages}</td>
-                  <td style={tableCellStyle}>{formatTokens(session.tokens)}</td>
-                  <td style={tableCellStyle}>${session.cost.toFixed(4)}</td>
-                  <td style={tableCellStyle}>
-                    {new Date(session.last_time).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div style={{
+        minHeight: '100vh',
+        background: tokens.colors.background,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <div style={{ fontSize: '18px', fontWeight: '600', color: tokens.colors.textPrimary }}>
+          Loading Dashboard...
         </div>
-      </Section>
-
-      {/* Drawers */}
-      <DayDrawer date={selectedDay} onClose={() => setSelectedDay(null)} />
-      <ModelDrawer model={selectedModel} onClose={() => setSelectedModel(null)} />
-      <SessionDrawer sessionId={selectedSession} onClose={() => setSelectedSession(null)} />
-
-      {/* Footer */}
-      <footer
-        style={{
-          marginTop: 'var(--spacing-2xl)',
-          paddingTop: 'var(--spacing-lg)',
-          borderTop: '1px solid var(--color-border)',
-          textAlign: 'center',
-          color: 'var(--color-text-muted)',
-          fontSize: 'var(--font-size-sm)',
-        }}
-      >
-        Command Center • {data.range.from} - {data.range.to}
-      </footer>
-    </div>
-  );
-}
-
-// Helper Components
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        backgroundColor: 'var(--color-surface)',
-        padding: 'var(--spacing-lg)',
-        borderRadius: 'var(--radius-xl)',
-        boxShadow: 'var(--shadow-md)',
-        marginBottom: 'var(--spacing-xl)',
-      }}
-    >
-      <h2
-        style={{
-          fontSize: 'var(--font-size-md)',
-          fontWeight: 'var(--font-weight-semibold)',
-          marginBottom: 'var(--spacing-md)',
-          color: 'var(--color-text-primary)',
-        }}
-      >
-        {title}
-      </h2>
-      {children}
-    </div>
-  );
-}
-
-function KPICard({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      style={{
-        backgroundColor: 'var(--color-surface)',
-        padding: 'var(--spacing-lg)',
-        borderRadius: 'var(--radius-xl)',
-        boxShadow: 'var(--shadow-md)',
-        transition: 'var(--transition-normal)',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = 'var(--shadow-hover)';
-        e.currentTarget.style.transform = 'translateY(-2px)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-        e.currentTarget.style.transform = 'translateY(0)';
-      }}
-    >
-      <div
-        style={{
-          fontSize: 'var(--font-size-xs)',
-          fontWeight: 'var(--font-weight-semibold)',
-          color: 'var(--color-text-muted)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          marginBottom: 'var(--spacing-sm)',
-        }}
-      >
-        {label}
       </div>
-      <div
-        style={{
-          fontSize: 'var(--font-size-3xl)',
-          fontWeight: 'var(--font-weight-bold)',
-          fontFamily: 'var(--font-family-mono)',
-          color: 'var(--color-text-primary)',
-        }}
-      >
-        {value}
+    );
+  }
+
+  if (error || !apiData) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: tokens.colors.background,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <div style={{ fontSize: '18px', fontWeight: '600', color: tokens.colors.semanticError }}>
+          Error: {error?.message || 'Failed to load data'}
+        </div>
       </div>
+    );
+  }
+
+  // Transform API data to component format
+  const data = {
+    dailyActivity: apiData.daily_activity,
+    monthlyData: apiData.timeline.data.map((d: any) => ({
+      month: d.period,
+      messages: d.messages,
+      tokens: d.tokens,
+      cost: d.cost,
+    })),
+    hourlyData: apiData.hourly_profile.map((h: any) => ({
+      hour: h.hour.toString().padStart(2, '0') + ':00',
+      activity: h.messages,
+    })),
+    modelData: apiData.model_distribution.map((m: any) => ({
+      model: m.model,
+      displayName: m.display_name,
+      tokens: m.tokens,
+      messages: m.messages,
+      cost: m.cost,
+    })),
+    sessions: apiData.recent_sessions.map((s: any) => ({
+      id: s.session_id,
+      model: s.display_name,
+      messages: s.messages,
+      tokens: s.tokens,
+      cost: s.cost,
+      time: s.first_time.split('T')[1]?.slice(0, 5) || '00:00',
+    })),
+    totals: {
+      messages: apiData.totals.messages,
+      sessions: apiData.totals.sessions,
+      tokens: apiData.totals.tokens,
+      cost: apiData.totals.cost,
+      cacheRead: apiData.totals.cache_read,
+      cacheWrite: apiData.totals.cache_write,
+      maxStreak: apiData.totals.max_streak,
+      currentStreak: apiData.totals.current_streak,
+    }
+  };
+  
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: tokens.colors.background,
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    }}>
+      {/* Header */}
+      <header style={{
+        background: tokens.colors.surface,
+        borderBottom: `1px solid ${tokens.colors.surfaceBorder}`,
+        padding: '16px 32px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        backdropFilter: 'blur(10px)',
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          maxWidth: '1600px',
+          margin: '0 auto',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
+              background: `linear-gradient(135deg, ${tokens.colors.accentPrimary}, ${tokens.colors.accentSecondary})`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Zap size={22} color={tokens.colors.surface} />
+            </div>
+            <div>
+              <h1 style={{
+                fontSize: '20px',
+                fontWeight: '700',
+                color: tokens.colors.textPrimary,
+                margin: 0,
+                letterSpacing: '-0.5px',
+              }}>
+                Command Center
+              </h1>
+              <p style={{
+                fontSize: '13px',
+                color: tokens.colors.textMuted,
+                margin: 0,
+              }}>
+                Claude Code Analytics Dashboard
+              </p>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Search */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              background: tokens.colors.background,
+              borderRadius: '10px',
+              border: `1px solid ${tokens.colors.surfaceBorder}`,
+            }}>
+              <Search size={16} color={tokens.colors.textMuted} />
+              <input
+                type="text"
+                placeholder="Search sessions..."
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  outline: 'none',
+                  fontSize: '14px',
+                  color: tokens.colors.textSecondary,
+                  width: '160px',
+                }}
+              />
+            </div>
+            
+            {/* Date range - simple inputs like original */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="date"
+                value={dateRange.from}
+                onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  border: `1px solid ${tokens.colors.surfaceBorder}`,
+                  backgroundColor: tokens.colors.surface,
+                  color: tokens.colors.textPrimary,
+                  fontSize: '14px',
+                }}
+              />
+              <span style={{ color: tokens.colors.textMuted }}>to</span>
+              <input
+                type="date"
+                value={dateRange.to}
+                onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  border: `1px solid ${tokens.colors.surfaceBorder}`,
+                  backgroundColor: tokens.colors.surface,
+                  color: tokens.colors.textPrimary,
+                  fontSize: '14px',
+                }}
+              />
+            </div>
+            
+            {/* Actions */}
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              border: `1px solid ${tokens.colors.surfaceBorder}`,
+              background: 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}>
+              <RefreshCw size={18} color={tokens.colors.textMuted} />
+            </button>
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              border: `1px solid ${tokens.colors.surfaceBorder}`,
+              background: 'transparent',
+              cursor: 'pointer',
+            }}>
+              <Download size={18} color={tokens.colors.textMuted} />
+            </button>
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              border: `1px solid ${tokens.colors.surfaceBorder}`,
+              background: 'transparent',
+              cursor: 'pointer',
+            }}>
+              <Settings size={18} color={tokens.colors.textMuted} />
+            </button>
+          </div>
+        </div>
+      </header>
+      
+      {/* Main content */}
+      <main style={{
+        maxWidth: '1600px',
+        margin: '0 auto',
+        padding: '32px',
+      }}>
+        {/* KPI Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, 1fr)',
+          gap: '20px',
+          marginBottom: '32px',
+        }}>
+          <KPICard
+            title="Messages"
+            value={formatNumber(data.totals.messages)}
+            subtitle="Total API calls"
+            trend={12}
+            icon={MessageSquare}
+          />
+          <KPICard
+            title="Sessions"
+            value={formatNumber(data.totals.sessions)}
+            subtitle="Unique sessions"
+            trend={8}
+            icon={Users}
+          />
+          <KPICard
+            title="Tokens"
+            value={formatNumber(data.totals.tokens)}
+            subtitle="Total processed"
+            trend={15}
+            icon={Zap}
+          />
+          <KPICard
+            title="Cost"
+            value={formatCurrency(data.totals.cost)}
+            subtitle="Usage charges"
+            trend={-3}
+            icon={Coins}
+          />
+          <KPICard
+            title="Streak"
+            value={`${data.totals.currentStreak}d`}
+            subtitle={`Max: ${data.totals.maxStreak}d`}
+            trend={undefined}
+            icon={Flame}
+            accentColor={tokens.colors.semanticWarning}
+          />
+        </div>
+        
+        {/* Charts Row 1 */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '2fr 1fr',
+          gap: '20px',
+          marginBottom: '32px',
+        }}>
+          <ActivityTimeline data={data.monthlyData} />
+          <ModelDistribution data={data.modelData} />
+        </div>
+        
+        {/* Activity Heatmap */}
+        <div style={{ marginBottom: '32px' }}>
+          <ActivityHeatmap
+            data={data.dailyActivity}
+            dateFrom={dateRange.from}
+            dateTo={dateRange.to}
+          />
+        </div>
+        
+        {/* Charts Row 2 */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '20px',
+          marginBottom: '32px',
+        }}>
+          <CacheEfficiency 
+            cacheRead={data.totals.cacheRead} 
+            cacheWrite={data.totals.cacheWrite} 
+          />
+          <HourlyPatterns data={data.hourlyData} />
+        </div>
+        
+        {/* Sessions Table */}
+        <SessionsTable sessions={data.sessions} />
+        
+        {/* Footer */}
+        <footer style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: '40px',
+          padding: '20px 0',
+          borderTop: `1px solid ${tokens.colors.surfaceBorder}`,
+        }}>
+          <div style={{ fontSize: '13px', color: tokens.colors.textMuted }}>
+            Last updated: {new Date().toLocaleString()} • DB Size: 52.3 MB • 
+            <span style={{ color: tokens.colors.semanticSuccess, marginLeft: '8px' }}>● Connected</span>
+          </div>
+          <div style={{ fontSize: '13px', color: tokens.colors.textMuted }}>
+            Command Center v2.2.0 • Powered by Claude Code
+          </div>
+        </footer>
+      </main>
     </div>
   );
 }
 
-// Helper functions
-function formatTokens(count: number): string {
-  if (count >= 1e9) return `${(count / 1e9).toFixed(1)}B`;
-  if (count >= 1e6) return `${(count / 1e6).toFixed(1)}M`;
-  if (count >= 1e3) return `${(count / 1e3).toFixed(1)}K`;
-  return count.toLocaleString();
-}
-
-const tableHeaderStyle: React.CSSProperties = {
-  padding: 'var(--spacing-sm) var(--spacing-md)',
-  textAlign: 'left',
-  fontSize: 'var(--font-size-xs)',
-  fontWeight: 'var(--font-weight-semibold)',
-  color: 'var(--color-text-muted)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.5px',
-};
-
-const tableCellStyle: React.CSSProperties = {
-  padding: 'var(--spacing-sm) var(--spacing-md)',
-  fontSize: 'var(--font-size-sm)',
-  color: 'var(--color-text-secondary)',
-};
-
+// ═══════════════════════════════════════════════════════════════════════════════
+// APP EXPORT WITH QUERY CLIENT
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Dashboard />
+      <DashboardContent />
     </QueryClientProvider>
   );
 }
