@@ -307,7 +307,6 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
                       }}
                       onMouseEnter={() => setHoveredDay(day.date)}
                       onMouseLeave={() => setHoveredDay(null)}
-                      title={`${day.date}: ${day.count} messages`}
                     />
                   );
                 })}
@@ -332,7 +331,7 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
               zIndex: 10,
               boxShadow: tokens.shadows.lg,
             }}>
-              {hoveredDay}: {data[hoveredDay]} messages
+              {hoveredDay}: {data[hoveredDay] || 0} messages
             </div>
           )}
         </div>
