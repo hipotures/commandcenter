@@ -12,7 +12,7 @@
 
 **Usage:**
 ```python
-from command-center.database.connection import get_db_connection
+from command_center.database.connection import get_db_connection
 
 with get_db_connection() as conn:
     cursor = conn.cursor()
@@ -160,7 +160,7 @@ recompute_hourly_aggregates(conn, affected_hours)
 
 **Usage:**
 ```python
-from command-center.collectors.file_scanner import scan_jsonl_files
+from command_center.collectors.file_scanner import scan_jsonl_files
 
 files = scan_jsonl_files()
 print(f"Found {len(files)} JSONL files")
@@ -234,7 +234,7 @@ hash_value = compute_entry_hash(entry)
 
 **Usage:**
 ```python
-from command-center.utils.date_helpers import parse_and_convert_to_local
+from command_center.utils.date_helpers import parse_and_convert_to_local
 
 dt_local = parse_and_convert_to_local("2025-11-27T02:09:11.551Z")
 print(dt_local.strftime("%Y-%m-%d %H:%M:%S %Z"))
@@ -289,7 +289,7 @@ date_key = format_date_key(datetime.now())
 
 **Usage:**
 ```python
-from command-center.visualization.png_generator import generate_usage_report_png
+from command_center.visualization.png_generator import generate_usage_report_png
 
 stats = query_usage_stats(conn, "2025-01-01", "2025-12-31")
 png_bytes = generate_usage_report_png(stats)
@@ -345,33 +345,32 @@ python -m command_center.tauri_api dashboard \
   --to 2025-12-31 \
   --refresh 0 \
   --granularity month \
-  --project PROJECT_ID  # Optional (v3)
+  --project-id PROJECT_ID  # Optional (v3)
 ```
 
 **Returns:**
-- `daily_stats`: Array of daily activity data
-- `timeline`: Timeline data (month/week/day granularity)
+- `range`: Date range (`from`, `to`)
+- `totals`: Aggregate statistics + streaks
+- `trends`: Percent change vs previous period (messages, sessions, tokens, cost)
+- `daily_activity`: Map of date to message count
+- `timeline`: Granularity + timeline data
 - `model_distribution`: Per-model token distribution
 - `hourly_profile`: 24-hour activity profile
-- `recent_sessions`: Last 10 sessions
-- `totals`: Aggregate statistics
-- `limit_events`: Session limit events (v2)
-- `png_base64`: Base64-encoded PNG report
+- `recent_sessions`: Last 20 sessions in range
+- `meta`: `updated_files`, `generated_at`
 
 **Day Details Endpoint:**
 ```bash
 python -m command_center.tauri_api day \
   --date 2025-06-15 \
-  --project PROJECT_ID  # Optional (v3)
+  --project-id PROJECT_ID  # Optional (v3)
 ```
 
 **Returns:**
 - `date`: Query date
-- `total_messages`: Message count
-- `total_sessions`: Session count
-- `total_tokens`: Token total
-- `hourly_breakdown`: Per-hour statistics
-- `top_models`: Model usage for this day
+- `totals`: Messages, sessions, tokens, input/output tokens, cost
+- `hourly`: Per-hour stats
+- `models`: Per-model usage breakdown
 - `sessions`: Session details
 
 **Model Details Endpoint:**
@@ -380,31 +379,77 @@ python -m command_center.tauri_api model \
   --model claude-sonnet-4-20250514 \
   --from 2025-01-01 \
   --to 2025-12-31 \
-  --project PROJECT_ID  # Optional (v3)
+  --project-id PROJECT_ID  # Optional (v3)
 ```
 
 **Returns:**
-- `model`: Model name (formatted)
-- `total_tokens`: Total tokens
-- `daily_usage`: Daily breakdown
-- `hourly_profile`: 24-hour profile
+- `model`: Model identifier
+- `display_name`: Human-friendly model name
+- `range`: Date range (`from`, `to`)
+- `totals`: Messages, sessions, tokens, cache, cost
+- `daily_activity`: Daily breakdown
+- `sessions`: Top sessions for this model
 
 **Session Details Endpoint:**
 ```bash
-python -m command_center.tauri_api session --id SESSION_UUID
+python -m command_center.tauri_api session \
+  --id SESSION_UUID \
+  --project-id PROJECT_ID  # Optional (v3)
 ```
 
 **Returns:**
 - `session_id`: Session UUID
+- `model`: Primary model
+- `display_name`: Human-friendly model name
+- `date`, `first_time`, `last_time`: Session metadata
+- `totals`: Token and cost totals
 - `messages`: Array of messages
-- `total_tokens`: Session total
-- `model`: Model used
+
+**Limits Endpoint:**
+```bash
+python -m command_center.tauri_api limits \
+  --from 2025-01-01 \
+  --to 2025-12-31
+```
+
+**Returns:**
+- `limit_type`, `reset_at`, `reset_text`, `summary`, `year`, `date`
+
+**Export PNG Endpoint:**
+```bash
+python -m command_center.tauri_api export-png \
+  --from 2025-01-01 \
+  --to 2025-12-31
+```
+
+**Returns:**
+- `filename`, `data` (base64 PNG), `size`, `mime_type`
+
+**Projects Endpoint:**
+```bash
+python -m command_center.tauri_api projects
+```
+
+**Returns:**
+- `projects`: Project metadata list
+
+**Update Project Endpoint:**
+```bash
+python -m command_center.tauri_api update-project \
+  --project-id PROJECT_ID \
+  --name "Project Name" \
+  --description "Description" \
+  --visible 1
+```
+
+**Returns:**
+- `project`: Updated project metadata
 
 #### Query Functions (NEW in v2.0+)
 
 **`query_timeline_data(conn, date_from, date_to, granularity, project_id=None)`**
 
-Returns timeline data for charts (month/week/day).
+Returns timeline data for charts (month/week/day/hour).
 
 **`query_model_distribution(conn, date_from, date_to, project_id=None)`**
 
@@ -414,7 +459,7 @@ Returns per-model token distribution.
 
 Returns 24-hour activity profile (0-23).
 
-**`query_recent_sessions(conn, limit=10, project_id=None)`**
+**`query_recent_sessions(conn, date_from, date_to, limit=20, project_id=None)`**
 
 Returns most recent sessions.
 
@@ -430,7 +475,7 @@ Returns detailed breakdown for a specific day.
 
 Returns model-specific analytics.
 
-**`query_session_details(conn, session_id)`**
+**`query_session_details(conn, session_id, project_id=None)`**
 
 Returns full session message list.
 
@@ -441,4 +486,3 @@ query_totals(conn, "2025-01-01", "2025-12-31", project_id="-home-user-dev-myproj
 ```
 
 ---
-

@@ -205,7 +205,7 @@ hit_rate = (cache_read / (cache_read + cache_write) * 100) if (cache_read + cach
 
 **Streak Calculation:**
 ```python
-from command-center.aggregators.streak_calculator import calculate_streaks
+from command_center.aggregators.streak_calculator import calculate_streaks
 
 max_streak, current_streak = calculate_streaks(stats.daily_activity)
 ```
@@ -280,4 +280,3 @@ def display_iterm2_protocol(png_bytes):
 - `\x07`: Bell (end command)
 
 ---
-
