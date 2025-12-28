@@ -1,7 +1,7 @@
 /**
  * Project Settings - manage project visibility and metadata
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useProjects, useUpdateProject } from '../../state/queries';
 import type { Project } from '../../types/api';
 import { Edit2, Check, X } from 'lucide-react';
@@ -99,6 +99,30 @@ export function ProjectSettings() {
     );
   }
 
+  const sortedProjects = useMemo(() => {
+    const projects = data.projects.slice();
+    projects.sort((a, b) => {
+      const aName = (a.name || '').trim();
+      const bName = (b.name || '').trim();
+      const aHasName = aName.length > 0;
+      const bHasName = bName.length > 0;
+
+      if (aHasName !== bHasName) {
+        return aHasName ? -1 : 1;
+      }
+
+      if (aHasName && bHasName) {
+        const nameCompare = aName.localeCompare(bName, undefined, { sensitivity: 'base' });
+        if (nameCompare !== 0) {
+          return nameCompare;
+        }
+      }
+
+      return a.project_id.localeCompare(b.project_id);
+    });
+    return projects;
+  }, [data.projects]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
       {/* Error message */}
@@ -123,7 +147,7 @@ export function ProjectSettings() {
         borderRadius: 'var(--radius-md)',
         overflow: 'hidden',
       }}>
-        {data.projects.map((project, idx) => (
+        {sortedProjects.map((project, idx) => (
           <ProjectRow
             key={project.project_id}
             project={project}
@@ -137,7 +161,7 @@ export function ProjectSettings() {
             onCancel={cancelEditing}
             onVisibleToggle={(visible) => handleVisibleToggle(project.project_id, visible)}
             isSaving={updateMutation.isPending}
-            isLast={idx === data.projects.length - 1}
+            isLast={idx === sortedProjects.length - 1}
           />
         ))}
       </div>
