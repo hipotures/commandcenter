@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Command Center is a SQLite-based analytics tool for Claude Code usage data. It processes JSONL session logs from `~/.claude/sessions/`, performs intelligent incremental updates, and generates usage reports (PNG + terminal display) for specified date ranges.
+Command Center is a SQLite-based analytics tool for Claude Code usage data. It processes JSONL session logs from `~/.claude/projects/` or `~/.config/claude/projects/`, performs intelligent incremental updates, and generates usage reports (PNG + terminal display) for specified date ranges.
 
 ## Development Commands
 
@@ -64,6 +64,18 @@ python -m command_center.tauri_api model --model claude-sonnet-4-20250514 --from
 
 # Session details
 python -m command_center.tauri_api session --id SESSION_UUID
+
+# Limit reset events
+python -m command_center.tauri_api limits --from 2025-01-01 --to 2025-12-31
+
+# Export PNG report (base64 output)
+python -m command_center.tauri_api export-png --from 2025-01-01 --to 2025-12-31
+
+# List all projects
+python -m command_center.tauri_api projects
+
+# Update project metadata
+python -m command_center.tauri_api update-project --project-id PROJECT_ID --name "Project Name" --description "Description" --visible 1
 ```
 
 ### Without Installation
@@ -77,7 +89,7 @@ uv run command-center --verbose
 ### Data Pipeline Flow
 
 1. **File Discovery** (`collectors/file_scanner.py`)
-   - Scans `~/.claude/sessions/*/messages.jsonl`
+   - Scans `~/.claude/projects/**/*.jsonl` and `~/.config/claude/projects/**/*.jsonl`
    - Returns list of discovered JSONL files
 
 2. **Change Detection** (`cache/file_tracker.py`)
@@ -167,7 +179,7 @@ The tool is optimized for speed on subsequent runs:
 
 All configuration is in `config.py`:
 - Database path: `~/.claude/db/command_center.db`
-- Session paths: `~/.claude/sessions/` or `~/.config/claude/sessions/`
+- Session paths: `~/.claude/projects/` or `~/.config/claude/projects/`
 - Canvas size: 1500×1400px
 - Color scheme: Defined in `COLORS` dict
 - Batch insert size: 100 entries
