@@ -10,7 +10,7 @@ import {
 import {
   MessageSquare, Users, Coins, Zap, Flame, Database,
   Calendar, TrendingUp, Clock, Cpu, ChevronDown, Download,
-  RefreshCw, Settings, ArrowUpRight, ArrowDownRight
+  RefreshCw, Settings, ArrowUpRight, ArrowDownRight, AlertTriangle
 } from 'lucide-react';
 import { useDashboard, useLimitResets, useProjects } from './state/queries';
 import { SettingsDrawer } from './components/drawers/SettingsDrawer';
@@ -74,6 +74,27 @@ const formatNumber = (num: number): string => {
 
 const formatCurrency = (num: number): string => {
   return '$' + num.toFixed(2);
+};
+
+const toDateMs = (value: string) => new Date(value).getTime();
+
+const truncateId = (value: string, max = 15): string => (
+  value.length > max ? `${value.slice(0, max)}...` : value
+);
+
+const formatDurationRange = (start?: string | null, end?: string | null): string => {
+  if (!start || !end) return '—';
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs < startMs) return '—';
+
+  const totalMinutes = Math.floor((endMs - startMs) / 60000);
+  if (totalMinutes < 1) return '<1m';
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
 };
 
 const getProjectDisplayName = (project: { name?: string | null; project_id: string }): string => {
@@ -1507,7 +1528,7 @@ const SessionsTable = ({ sessions, isExporting = false }: any) => {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              {['Session ID', 'Model', 'Messages', 'Tokens', 'Cost', 'Time'].map(header => (
+            {['Session ID', 'Model', 'Messages', 'Tokens', 'Cost', 'Date', 'Duration'].map(header => (
                 <th key={header} style={{
                   textAlign: 'left',
                   padding: '12px 16px',
@@ -1541,20 +1562,22 @@ const SessionsTable = ({ sessions, isExporting = false }: any) => {
                   color: tokens.colors.textSecondary,
                   borderBottom: idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
                 }}>
-                {session.id}
+                <span title={session.id}>{truncateId(session.id)}</span>
                 </td>
                 <td style={{
                   padding: '16px',
                   borderBottom: idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
                 }}>
                   <span style={{
-                    display: 'inline-block',
+                    display: 'inline-flex',
+                    alignItems: 'center',
                     padding: '4px 10px',
                     borderRadius: '12px',
                     fontSize: '12px',
                     fontWeight: '600',
                     background: 'var(--color-accent-primary-15)',
                     color: tokens.colors.accentPrimary,
+                    whiteSpace: 'nowrap',
                   }}>
                     {session.model}
                   </span>
@@ -1591,10 +1614,18 @@ const SessionsTable = ({ sessions, isExporting = false }: any) => {
                   color: tokens.colors.textMuted,
                   borderBottom: idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
                 }}>
-                  {session.time}
-                </td>
-              </tr>
-            ))}
+                {session.date}
+              </td>
+              <td style={{
+                padding: '16px',
+                fontSize: '13px',
+                color: tokens.colors.textMuted,
+                borderBottom: idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+              }}>
+                {session.duration}
+              </td>
+            </tr>
+          ))}
           </tbody>
         </table>
       </div>
@@ -1615,7 +1646,11 @@ function DashboardContent() {
   const [showPicker, setShowPicker] = useState(false);
   const [shouldRefresh, setShouldRefresh] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [rangeNotice, setRangeNotice] = useState<string | null>(null);
+  const [rangeNoticeVisible, setRangeNoticeVisible] = useState(false);
   const dashboardRef = useRef<HTMLElement | null>(null);
+  const rangeNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rangeNoticeClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Settings drawer state and project filter
   const {
@@ -1666,6 +1701,62 @@ function DashboardContent() {
     selectedProjectId
   );
   const { data: projectsData } = useProjects();
+
+  useEffect(() => {
+    const dataRange = apiData?.meta?.data_range;
+    if (!dataRange?.start && !dataRange?.end) {
+      setRangeNotice(null);
+      setRangeNoticeVisible(false);
+      return;
+    }
+
+    const messages: string[] = [];
+    if (dataRange.start && toDateMs(dateRange.from) < toDateMs(dataRange.start)) {
+      messages.push(`Data starts on ${dataRange.start}.`);
+    }
+    if (dataRange.end && toDateMs(dateRange.to) > toDateMs(dataRange.end)) {
+      messages.push(`Data ends on ${dataRange.end}.`);
+    }
+
+    if (messages.length === 0) {
+      setRangeNotice(null);
+      setRangeNoticeVisible(false);
+      return;
+    }
+
+    setRangeNotice(`${messages.join(' ')} Selected range includes empty days.`);
+  }, [apiData?.meta?.data_range?.start, apiData?.meta?.data_range?.end, dateRange.from, dateRange.to]);
+
+  useEffect(() => {
+    if (!rangeNotice) {
+      return;
+    }
+
+    setRangeNoticeVisible(true);
+    if (rangeNoticeTimerRef.current) {
+      clearTimeout(rangeNoticeTimerRef.current);
+    }
+    if (rangeNoticeClearRef.current) {
+      clearTimeout(rangeNoticeClearRef.current);
+    }
+
+    rangeNoticeTimerRef.current = setTimeout(() => {
+      setRangeNoticeVisible(false);
+    }, 5000);
+
+    rangeNoticeClearRef.current = setTimeout(() => {
+      setRangeNotice(null);
+    }, 5600);
+
+    return () => {
+      if (rangeNoticeTimerRef.current) {
+        clearTimeout(rangeNoticeTimerRef.current);
+      }
+      if (rangeNoticeClearRef.current) {
+        clearTimeout(rangeNoticeClearRef.current);
+      }
+    };
+  }, [rangeNotice]);
 
   // Fetch limit resets
   const { data: limitResets } = useLimitResets(
@@ -1862,7 +1953,8 @@ function DashboardContent() {
       messages: s.messages,
       tokens: s.tokens,
       cost: s.cost,
-      time: s.first_time.split('T')[1]?.slice(0, 5) || '00:00',
+      date: normalizeDateString(s.first_time || '') || 'N/A',
+      duration: formatDurationRange(s.first_time, s.last_time),
     })),
     totals: {
       messages: apiData.totals.messages,
@@ -2448,6 +2540,42 @@ function DashboardContent() {
                   {dateRange.from} → {dateRange.to}
                 </span>
               </div>
+            </div>
+          </div>
+        )}
+        {rangeNotice && (
+          <div
+            data-export-exclude="true"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              background: `linear-gradient(135deg, ${tokens.colors.background}, ${tokens.colors.surface})`,
+              border: `1px solid ${tokens.colors.surfaceBorder}`,
+              boxShadow: tokens.shadows.sm,
+              marginBottom: '18px',
+              color: tokens.colors.textSecondary,
+              opacity: rangeNoticeVisible ? 1 : 0,
+              transform: rangeNoticeVisible ? 'translateY(0)' : 'translateY(-6px)',
+              transition: 'opacity 0.4s ease, transform 0.4s ease',
+            }}
+          >
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '10px',
+              background: 'var(--color-accent-primary-10)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <AlertTriangle size={16} color={tokens.colors.semanticWarning} />
+            </div>
+            <div style={{ fontSize: '13px' }}>
+              {rangeNotice}
             </div>
           </div>
         )}
