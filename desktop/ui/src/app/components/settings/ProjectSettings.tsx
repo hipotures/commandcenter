@@ -307,13 +307,13 @@ function ProjectRow({
       {/* Checkbox */}
       <input
         type="checkbox"
+        className="limit-checkbox size-md"
         checked={project.visible}
         onChange={(e) => onVisibleToggle(e.target.checked)}
         style={{
           cursor: 'pointer',
           width: '16px',
           height: '16px',
-          accentColor: 'var(--color-accent-primary)',
         }}
         aria-label={`Toggle visibility for ${project.name || project.absolute_path}`}
       />

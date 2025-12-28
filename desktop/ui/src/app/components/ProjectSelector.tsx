@@ -5,16 +5,16 @@ import { useAppStore } from '../state/store';
 
 const tokens = {
   colors: {
-    background: '#FAF8F6',
-    surface: '#FFFFFF',
-    surfaceBorder: '#E8E3DC',
-    textPrimary: '#2B1D13',
-    textSecondary: '#695947',
-    textMuted: '#9C8D7C',
-    accentPrimary: '#D97757',
+    background: 'var(--color-background)',
+    surface: 'var(--color-surface)',
+    surfaceBorder: 'var(--color-border)',
+    textPrimary: 'var(--color-text-primary)',
+    textSecondary: 'var(--color-text-secondary)',
+    textMuted: 'var(--color-text-muted)',
+    accentPrimary: 'var(--color-accent-primary)',
   },
   shadows: {
-    lg: '0 10px 40px rgba(43, 29, 19, 0.12)',
+    lg: 'var(--shadow-lg)',
   },
 };
 

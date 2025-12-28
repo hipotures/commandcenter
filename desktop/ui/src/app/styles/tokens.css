@@ -16,6 +16,9 @@
   --color-text-muted: #8A7264;
   --color-accent-primary: #D97757;
   --color-accent-hover: #C96647;
+  --color-accent-primary-10: rgba(217, 119, 87, 0.06);
+  --color-accent-primary-15: rgba(217, 119, 87, 0.08);
+  --color-accent-primary-80: rgba(217, 119, 87, 0.5);
   --color-success: #22C55E;
   --color-warning: #F59E0B;
   --color-error: #EF4444;
@@ -100,6 +103,9 @@
   --color-text-muted: #8A7F75;
   --color-accent-primary: #E88B6A;
   --color-accent-hover: #F29A7A;
+  --color-accent-primary-10: rgba(232, 139, 106, 0.06);
+  --color-accent-primary-15: rgba(232, 139, 106, 0.08);
+  --color-accent-primary-80: rgba(232, 139, 106, 0.5);
   --color-success: #34D399;
   --color-warning: #FBBF24;
   --color-error: #F87171;
@@ -151,4 +157,57 @@
 
 .transition-default {
   transition: all var(--transition-normal);
+}
+
+/* Custom checkbox styling for limit filters */
+.limit-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-grid;
+  place-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background-color: var(--color-surface);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.limit-checkbox.size-md {
+  width: 16px;
+  height: 16px;
+}
+
+.limit-checkbox::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  transform: scale(0);
+  background-color: var(--color-text-primary);
+  clip-path: polygon(14% 44%, 0 59%, 39% 100%, 100% 24%, 85% 8%, 39% 72%);
+  transition: transform var(--transition-fast);
+}
+
+.limit-checkbox.size-md::before {
+  width: 10px;
+  height: 10px;
+}
+
+.limit-checkbox:checked {
+  background-color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+}
+
+.limit-checkbox:checked::before {
+  transform: scale(1);
+}
+
+.limit-checkbox:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+.limit-checkbox:disabled {
+  cursor: not-allowed;
 }

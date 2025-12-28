@@ -22,24 +22,32 @@ import { useAppStore } from './state/store';
 // ═══════════════════════════════════════════════════════════════════════════════
 const tokens = {
   colors: {
-    background: '#F7F1E9',
-    surface: '#FFF9F2',
-    surfaceBorder: '#E8D7C6',
-    textPrimary: '#2B1D13',
-    textSecondary: '#4A3426',
-    textTertiary: '#6B5142',
-    textMuted: '#8A7264',
-    accentPrimary: '#D97757',
-    accentSecondary: '#C4623F',
-    semanticSuccess: '#22C55E',
-    semanticWarning: '#F59E0B',
-    semanticError: '#EF4444',
-    heatmap: ['#F0E6DC', '#E6D6C8', '#D9C1AE', '#CBA590', '#BC8873', '#AE6E5B', '#9A5647'],
+    background: 'var(--color-background)',
+    surface: 'var(--color-surface)',
+    surfaceBorder: 'var(--color-border)',
+    textPrimary: 'var(--color-text-primary)',
+    textSecondary: 'var(--color-text-secondary)',
+    textTertiary: 'var(--color-text-tertiary)',
+    textMuted: 'var(--color-text-muted)',
+    accentPrimary: 'var(--color-accent-primary)',
+    accentSecondary: 'var(--color-accent-hover)',
+    semanticSuccess: 'var(--color-success)',
+    semanticWarning: 'var(--color-warning)',
+    semanticError: 'var(--color-error)',
+    heatmap: [
+      'var(--color-heatmap-0)',
+      'var(--color-heatmap-1)',
+      'var(--color-heatmap-2)',
+      'var(--color-heatmap-3)',
+      'var(--color-heatmap-4)',
+      'var(--color-heatmap-5)',
+      'var(--color-heatmap-6)',
+    ],
   },
   shadows: {
-    sm: '0 1px 2px 0 rgba(43, 29, 19, 0.05)',
-    md: '0 4px 6px -1px rgba(43, 29, 19, 0.07), 0 2px 4px -2px rgba(43, 29, 19, 0.05)',
-    lg: '0 10px 15px -3px rgba(43, 29, 19, 0.08), 0 4px 6px -4px rgba(43, 29, 19, 0.04)',
+    sm: 'var(--shadow-sm)',
+    md: 'var(--shadow-md)',
+    lg: 'var(--shadow-lg)',
   }
 };
 
@@ -528,7 +536,7 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                         transform: hoveredDay === day.date ? 'scale(1.3)' : 'scale(1)',
-                        outline: isInSelectedRange ? `1px solid ${tokens.colors.accentPrimary}80` : 'none',
+                        outline: isInSelectedRange ? '1px solid var(--color-accent-primary-80)' : 'none',
                         outlineOffset: '-1px',
                       }}
                       onMouseEnter={() => setHoveredDay(day.date)}
@@ -1033,6 +1041,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
               >
                 <input
                   type="checkbox"
+                  className="limit-checkbox"
                   checked={isSelected}
                   onChange={() => hasLimitData && toggleLimitType(limit.type)}
                   disabled={!hasLimitData}
@@ -1156,7 +1165,7 @@ const HourlyPatterns = ({ data }: any) => {
           gap: '8px',
           marginTop: '16px',
           padding: '12px',
-          background: `${tokens.colors.accentPrimary}10`,
+          background: 'var(--color-accent-primary-10)',
           borderRadius: '8px',
         }}>
           <Zap size={16} style={{ color: tokens.colors.accentPrimary }} />
@@ -1246,7 +1255,7 @@ const DailyPatterns = ({ data }: any) => {
           gap: '8px',
           marginTop: '16px',
           padding: '12px',
-          background: `${tokens.colors.accentPrimary}10`,
+          background: 'var(--color-accent-primary-10)',
           borderRadius: '8px',
         }}>
           <Zap size={16} style={{ color: tokens.colors.accentPrimary }} />
@@ -1488,7 +1497,7 @@ const SessionsTable = ({ sessions }: any) => (
                   borderRadius: '12px',
                   fontSize: '12px',
                   fontWeight: '600',
-                  background: `${tokens.colors.accentPrimary}15`,
+                  background: 'var(--color-accent-primary-15)',
                   color: tokens.colors.accentPrimary,
                 }}>
                   {session.model}
@@ -1551,7 +1560,7 @@ function DashboardContent() {
   const [shouldRefresh, setShouldRefresh] = useState(false);
 
   // Settings drawer state and project filter
-  const { settingsOpen, toggleSettings, selectedProjectId } = useAppStore();
+  const { settingsOpen, toggleSettings, selectedProjectId, darkMode } = useAppStore();
 
   // Debug log
   console.log('[DashboardContent] selectedProjectId:', selectedProjectId);
@@ -1570,6 +1579,15 @@ function DashboardContent() {
   };
 
   const granularity = calculateGranularity(dateRange.from, dateRange.to);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.setAttribute('data-theme', 'dark');
+    } else {
+      root.removeAttribute('data-theme');
+    }
+  }, [darkMode]);
 
   console.log('[DashboardContent] selectedProjectId from store:', selectedProjectId);
 
