@@ -55,7 +55,9 @@ export const ProjectSelector = () => {
 
   // Find selected project
   const selectedProject = visibleProjects.find(p => p.project_id === selectedProjectId);
-  const displayText = selectedProject ? getDisplayName(selectedProject) : 'All';
+  const allProjectsLabel = 'All Projects';
+  const allProjectsTooltip = 'Select project filter';
+  const displayText = selectedProject ? getDisplayName(selectedProject) : allProjectsLabel;
 
   console.log('[ProjectSelector] Display text:', displayText);
 
@@ -64,6 +66,7 @@ export const ProjectSelector = () => {
       {/* Trigger Button */}
       <div
         onClick={() => setIsOpen(!isOpen)}
+        title={selectedProject ? getDisplayName(selectedProject) : allProjectsTooltip}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -117,13 +120,14 @@ export const ProjectSelector = () => {
             overflowY: 'auto',
           }}
         >
-          {/* "All" option */}
+          {/* "All Projects" option */}
           <div
             onClick={() => {
               console.log('[ProjectSelector] Setting to: All (null)');
               setSelectedProjectId(null);
               setIsOpen(false);
             }}
+            title={allProjectsTooltip}
             style={{
               padding: '12px 16px',
               cursor: 'pointer',
@@ -142,7 +146,7 @@ export const ProjectSelector = () => {
               e.currentTarget.style.background = 'transparent';
             }}
           >
-            All
+            {allProjectsLabel}
           </div>
 
           {/* Project options */}

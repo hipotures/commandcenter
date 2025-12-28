@@ -68,6 +68,24 @@ const formatCurrency = (num: number): string => {
   return '$' + num.toFixed(2);
 };
 
+const EmptyChartState = ({ message }: { message: string }) => (
+  <div style={{
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    fontSize: '12px',
+    color: tokens.colors.textMuted,
+    background: tokens.colors.background,
+    borderRadius: '12px',
+    border: `1px dashed ${tokens.colors.surfaceBorder}`,
+    padding: '12px',
+  }}>
+    {message}
+  </div>
+);
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // KPI CARD COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -377,6 +395,8 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const ModelDistribution = ({ data }: any) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const safeData = Array.isArray(data) ? data : [];
+  const hasData = safeData.length > 0;
 
   const chartColors = [
     tokens.colors.accentPrimary,
@@ -384,7 +404,7 @@ const ModelDistribution = ({ data }: any) => {
     tokens.colors.heatmap[4],
   ];
 
-  const totalTokens = data.reduce((sum: number, m: any) => sum + m.tokens, 0);
+  const totalTokens = safeData.reduce((sum: number, m: any) => sum + m.tokens, 0);
 
   return (
     <div style={{
@@ -408,55 +428,59 @@ const ModelDistribution = ({ data }: any) => {
       </div>
       
       <div style={{ height: '160px' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="tokens"
-              nameKey="displayName"
-              cx="50%"
-              cy="50%"
-              innerRadius={45}
-              outerRadius={65}
-              paddingAngle={3}
-              onMouseEnter={(_, idx) => setActiveIndex(idx)}
-              onMouseLeave={() => setActiveIndex(null)}
-            >
-              {data.map((_: any, idx: number) => (
-                <Cell 
-                  key={idx} 
-                  fill={chartColors[idx]}
-                  style={{
-                    filter: activeIndex === idx ? 'brightness(1.1)' : 'none',
-                    transform: activeIndex === idx ? 'scale(1.05)' : 'scale(1)',
-                    transformOrigin: 'center',
-                    transition: 'all 0.2s ease',
-                  }}
-                />
-              ))}
-            </Pie>
-            <Tooltip 
-              content={({ payload }) => {
-                if (!payload || !payload[0]) return null;
-                const item = payload[0].payload;
-                return (
-                  <div style={{
-                    background: tokens.colors.textPrimary,
-                    color: tokens.colors.surface,
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    boxShadow: tokens.shadows.lg,
-                  }}>
-                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>{item.displayName}</div>
-                    <div>{formatNumber(item.tokens)} tokens</div>
-                    <div style={{ color: tokens.colors.heatmap[2] }}>{formatCurrency(item.cost)}</div>
-                  </div>
-                );
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={safeData}
+                dataKey="tokens"
+                nameKey="displayName"
+                cx="50%"
+                cy="50%"
+                innerRadius={45}
+                outerRadius={65}
+                paddingAngle={3}
+                onMouseEnter={(_, idx) => setActiveIndex(idx)}
+                onMouseLeave={() => setActiveIndex(null)}
+              >
+                {safeData.map((_: any, idx: number) => (
+                  <Cell 
+                    key={idx} 
+                    fill={chartColors[idx]}
+                    style={{
+                      filter: activeIndex === idx ? 'brightness(1.1)' : 'none',
+                      transform: activeIndex === idx ? 'scale(1.05)' : 'scale(1)',
+                      transformOrigin: 'center',
+                      transition: 'all 0.2s ease',
+                    }}
+                  />
+                ))}
+              </Pie>
+              <Tooltip 
+                content={({ payload }) => {
+                  if (!payload || !payload[0]) return null;
+                  const item = payload[0].payload;
+                  return (
+                    <div style={{
+                      background: tokens.colors.textPrimary,
+                      color: tokens.colors.surface,
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      boxShadow: tokens.shadows.lg,
+                    }}>
+                      <div style={{ fontWeight: '600', marginBottom: '4px' }}>{item.displayName}</div>
+                      <div>{formatNumber(item.tokens)} tokens</div>
+                      <div style={{ color: tokens.colors.heatmap[2] }}>{formatCurrency(item.cost)}</div>
+                    </div>
+                  );
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyChartState message="No model data for this range" />
+        )}
       </div>
       
       {/* Legend */}
@@ -466,7 +490,7 @@ const ModelDistribution = ({ data }: any) => {
         gridTemplateColumns: 'repeat(2, 1fr)',
         gap: '12px',
       }}>
-        {data.map((model: any, idx: number) => (
+        {safeData.map((model: any, idx: number) => (
           <div
             key={model.model}
             onMouseEnter={() => setActiveIndex(idx)}
@@ -496,7 +520,7 @@ const ModelDistribution = ({ data }: any) => {
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '13px', fontWeight: '600', color: tokens.colors.accentPrimary }}>
-                {((model.tokens / totalTokens) * 100).toFixed(1)}%
+                {(totalTokens > 0 ? (model.tokens / totalTokens) * 100 : 0).toFixed(1)}%
               </div>
               <div style={{ fontSize: '10px', color: tokens.colors.textMuted }}>
                 {formatNumber(model.tokens)} tok
@@ -515,6 +539,8 @@ const ModelDistribution = ({ data }: any) => {
 const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
   const [metric, setMetric] = useState('messages');
   const [selectedLimitTypes, setSelectedLimitTypes] = useState<Set<string>>(new Set());
+  const safeData = Array.isArray(data) ? data : [];
+  const hasData = safeData.length > 0;
 
   const metrics = [
     { key: 'messages', label: 'Messages', color: tokens.colors.accentPrimary },
@@ -618,96 +644,100 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
       <div style={{ display: 'flex', gap: '20px' }}>
         {/* Chart */}
         <div style={{ flex: 1, height: '280px', minWidth: 0 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={tokens.colors.accentPrimary} stopOpacity={0.3}/>
-                <stop offset="95%" stopColor={tokens.colors.accentPrimary} stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} />
-            <XAxis
-              dataKey="period"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: tokens.colors.textMuted, fontSize: 11 }}
-              tickFormatter={formatPeriodLabel}
-              angle={0}
-              height={40}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: tokens.colors.textMuted, fontSize: 12 }}
-              tickFormatter={(val) => formatNumber(val)}
-            />
-            <Tooltip
-              contentStyle={{
-                background: tokens.colors.textPrimary,
-                border: 'none',
-                borderRadius: '8px',
-                boxShadow: tokens.shadows.lg,
-              }}
-              labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
-              itemStyle={{ color: tokens.colors.heatmap[2] }}
-              labelFormatter={formatPeriodLabel}
-              formatter={(val: any) => [metric === 'cost' ? formatCurrency(val) : formatNumber(val), metrics.find(m => m.key === metric)?.label]}
-            />
-            <Area
-              type="monotone"
-              dataKey={metric}
-              stroke={tokens.colors.accentPrimary}
-              strokeWidth={3}
-              fill="url(#colorGradient)"
-              dot={{ fill: tokens.colors.accentPrimary, strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, fill: tokens.colors.accentPrimary, stroke: tokens.colors.surface, strokeWidth: 2 }}
-            />
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={safeData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={tokens.colors.accentPrimary} stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor={tokens.colors.accentPrimary} stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} />
+              <XAxis
+                dataKey="period"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: tokens.colors.textMuted, fontSize: 11 }}
+                tickFormatter={formatPeriodLabel}
+                angle={0}
+                height={40}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: tokens.colors.textMuted, fontSize: 12 }}
+                tickFormatter={(val) => formatNumber(val)}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: tokens.colors.textPrimary,
+                  border: 'none',
+                  borderRadius: '8px',
+                  boxShadow: tokens.shadows.lg,
+                }}
+                labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
+                itemStyle={{ color: tokens.colors.heatmap[2] }}
+                labelFormatter={formatPeriodLabel}
+                formatter={(val: any) => [metric === 'cost' ? formatCurrency(val) : formatNumber(val), metrics.find(m => m.key === metric)?.label]}
+              />
+              <Area
+                type="monotone"
+                dataKey={metric}
+                stroke={tokens.colors.accentPrimary}
+                strokeWidth={3}
+                fill="url(#colorGradient)"
+                dot={{ fill: tokens.colors.accentPrimary, strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, fill: tokens.colors.accentPrimary, stroke: tokens.colors.surface, strokeWidth: 2 }}
+              />
 
-            {/* Limit reset lines */}
-            {limitResets.filter((reset: any) => selectedLimitTypes.has(reset.limit_type)).map((reset: any, idx: number) => {
-              // Parse reset timestamp to match granularity format
-              const resetDate = new Date(reset.reset_at);
-              let xValue = '';
+              {/* Limit reset lines */}
+              {limitResets.filter((reset: any) => selectedLimitTypes.has(reset.limit_type)).map((reset: any, idx: number) => {
+                // Parse reset timestamp to match granularity format
+                const resetDate = new Date(reset.reset_at);
+                let xValue = '';
 
-              if (granularity === 'hour') {
-                // Format: "2025-01-15 14"
-                const dateStr = resetDate.toISOString().slice(0, 10);
-                const hour = resetDate.getHours();
-                xValue = `${dateStr} ${hour}`;
-              } else if (granularity === 'day') {
-                // Format: "2025-01-15"
-                xValue = resetDate.toISOString().slice(0, 10);
-              } else if (granularity === 'week') {
-                // Format: "2025-W03" (ISO week)
-                const year = resetDate.getFullYear();
-                const onejan = new Date(year, 0, 1);
-                const week = Math.ceil((((resetDate.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
-                xValue = `${year}-W${String(week).padStart(2, '0')}`;
-              } else {
-                // month: Format: "2025-01"
-                xValue = resetDate.toISOString().slice(0, 7);
-              }
+                if (granularity === 'hour') {
+                  // Format: "2025-01-15 14"
+                  const dateStr = resetDate.toISOString().slice(0, 10);
+                  const hour = resetDate.getHours();
+                  xValue = `${dateStr} ${hour}`;
+                } else if (granularity === 'day') {
+                  // Format: "2025-01-15"
+                  xValue = resetDate.toISOString().slice(0, 10);
+                } else if (granularity === 'week') {
+                  // Format: "2025-W03" (ISO week)
+                  const year = resetDate.getFullYear();
+                  const onejan = new Date(year, 0, 1);
+                  const week = Math.ceil((((resetDate.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
+                  xValue = `${year}-W${String(week).padStart(2, '0')}`;
+                } else {
+                  // month: Format: "2025-01"
+                  xValue = resetDate.toISOString().slice(0, 7);
+                }
 
-              const colors = {
-                '5-hour': '#F59E0B',
-                'session': '#EF4444',
-                'spending_cap': '#DC2626',
-                'context': '#7C3AED'
-              };
+                const colors = {
+                  '5-hour': '#F59E0B',
+                  'session': '#EF4444',
+                  'spending_cap': '#DC2626',
+                  'context': '#7C3AED'
+                };
 
-              return (
-                <ReferenceLine
-                  key={`limit-${idx}`}
-                  x={xValue}
-                  stroke={colors[reset.limit_type as keyof typeof colors] || '#94A3B8'}
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                />
-              );
-            })}
-          </AreaChart>
-        </ResponsiveContainer>
+                return (
+                  <ReferenceLine
+                    key={`limit-${idx}`}
+                    x={xValue}
+                    stroke={colors[reset.limit_type as keyof typeof colors] || '#94A3B8'}
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                  />
+                );
+              })}
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyChartState message="No activity in this range" />
+        )}
         </div>
 
         {/* Legend */}
@@ -730,7 +760,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
           </div>
           {limitTypes.map(limit => {
             // Check if this limit type exists in current data
-            const hasData = limitResets.some((r: any) => r.limit_type === limit.type);
+            const hasLimitData = hasData && limitResets.some((r: any) => r.limit_type === limit.type);
             const isSelected = selectedLimitTypes.has(limit.type);
             return (
               <label
@@ -742,18 +772,18 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
                   padding: '6px 8px',
                   borderRadius: '6px',
                   background: tokens.colors.background,
-                  opacity: hasData ? 1 : 0.4,
-                  cursor: hasData ? 'pointer' : 'not-allowed',
+                  opacity: hasLimitData ? 1 : 0.4,
+                  cursor: hasLimitData ? 'pointer' : 'not-allowed',
                   transition: 'all 0.2s ease',
                 }}
               >
                 <input
                   type="checkbox"
                   checked={isSelected}
-                  onChange={() => hasData && toggleLimitType(limit.type)}
-                  disabled={!hasData}
+                  onChange={() => hasLimitData && toggleLimitType(limit.type)}
+                  disabled={!hasLimitData}
                   style={{
-                    cursor: hasData ? 'pointer' : 'not-allowed',
+                    cursor: hasLimitData ? 'pointer' : 'not-allowed',
                     width: '14px',
                     height: '14px',
                     flexShrink: 0,
@@ -797,7 +827,11 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
 // HOURLY PATTERNS CHART
 // ═══════════════════════════════════════════════════════════════════════════════
 const HourlyPatterns = ({ data }: any) => {
-  const peakHour = data.reduce((max: any, curr: any) => curr.activity > max.activity ? curr : max, data[0]);
+  const safeData = Array.isArray(data) ? data : [];
+  const hasData = safeData.length > 0;
+  const peakHour = hasData
+    ? safeData.reduce((max: any, curr: any) => curr.activity > max.activity ? curr : max, safeData[0])
+    : { hour: '--:--', activity: 0 };
 
   return (
     <div style={{
@@ -821,55 +855,61 @@ const HourlyPatterns = ({ data }: any) => {
       </div>
       
       <div style={{ height: '200px' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} vertical={false} />
-            <XAxis 
-              dataKey="hour"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
-              interval={2}
-            />
-            <YAxis 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
-            />
-            <Tooltip
-              contentStyle={{
-                background: tokens.colors.textPrimary,
-                border: 'none',
-                borderRadius: '8px',
-                boxShadow: tokens.shadows.lg,
-              }}
-              labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
-              itemStyle={{ color: tokens.colors.heatmap[2] }}
-              formatter={(val) => [val + ' messages', 'Activity']}
-            />
-            <Bar 
-              dataKey="activity" 
-              fill={tokens.colors.accentPrimary}
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={safeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} vertical={false} />
+              <XAxis 
+                dataKey="hour"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
+                interval={2}
+              />
+              <YAxis 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: tokens.colors.textPrimary,
+                  border: 'none',
+                  borderRadius: '8px',
+                  boxShadow: tokens.shadows.lg,
+                }}
+                labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
+                itemStyle={{ color: tokens.colors.heatmap[2] }}
+                formatter={(val) => [val + ' messages', 'Activity']}
+              />
+              <Bar 
+                dataKey="activity" 
+                fill={tokens.colors.accentPrimary}
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyChartState message="No hourly activity in this range" />
+        )}
       </div>
       
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        marginTop: '16px',
-        padding: '12px',
-        background: `${tokens.colors.accentPrimary}10`,
-        borderRadius: '8px',
-      }}>
-        <Zap size={16} style={{ color: tokens.colors.accentPrimary }} />
-        <span style={{ fontSize: '13px', color: tokens.colors.textSecondary }}>
-          Peak activity: <strong>{peakHour.hour}</strong> ({peakHour.activity} avg messages)
-        </span>
-      </div>
+      {hasData && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginTop: '16px',
+          padding: '12px',
+          background: `${tokens.colors.accentPrimary}10`,
+          borderRadius: '8px',
+        }}>
+          <Zap size={16} style={{ color: tokens.colors.accentPrimary }} />
+          <span style={{ fontSize: '13px', color: tokens.colors.textSecondary }}>
+            Peak activity: <strong>{peakHour.hour}</strong> ({peakHour.activity} avg messages)
+          </span>
+        </div>
+      )}
     </div>
   );
 };
@@ -878,7 +918,11 @@ const HourlyPatterns = ({ data }: any) => {
 // DAILY PATTERNS CHART
 // ═══════════════════════════════════════════════════════════════════════════════
 const DailyPatterns = ({ data }: any) => {
-  const peakDay = data.reduce((max: any, curr: any) => curr.activity > max.activity ? curr : max, data[0]);
+  const safeData = Array.isArray(data) ? data : [];
+  const hasData = safeData.length > 0;
+  const peakDay = hasData
+    ? safeData.reduce((max: any, curr: any) => curr.activity > max.activity ? curr : max, safeData[0])
+    : { day: '--', activity: 0 };
 
   return (
     <div style={{
@@ -902,54 +946,60 @@ const DailyPatterns = ({ data }: any) => {
       </div>
 
       <div style={{ height: '200px' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} vertical={false} />
-            <XAxis
-              dataKey="day"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
-            />
-            <Tooltip
-              contentStyle={{
-                background: tokens.colors.textPrimary,
-                border: 'none',
-                borderRadius: '8px',
-                boxShadow: tokens.shadows.lg,
-              }}
-              labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
-              itemStyle={{ color: tokens.colors.heatmap[2] }}
-              formatter={(val) => [val + ' messages', 'Activity']}
-            />
-            <Bar
-              dataKey="activity"
-              fill={tokens.colors.accentPrimary}
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={safeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} vertical={false} />
+              <XAxis
+                dataKey="day"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: tokens.colors.textPrimary,
+                  border: 'none',
+                  borderRadius: '8px',
+                  boxShadow: tokens.shadows.lg,
+                }}
+                labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
+                itemStyle={{ color: tokens.colors.heatmap[2] }}
+                formatter={(val) => [val + ' messages', 'Activity']}
+              />
+              <Bar
+                dataKey="activity"
+                fill={tokens.colors.accentPrimary}
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyChartState message="No daily activity in this range" />
+        )}
       </div>
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        marginTop: '16px',
-        padding: '12px',
-        background: `${tokens.colors.accentPrimary}10`,
-        borderRadius: '8px',
-      }}>
-        <Zap size={16} style={{ color: tokens.colors.accentPrimary }} />
-        <span style={{ fontSize: '13px', color: tokens.colors.textSecondary }}>
-          Most active day: <strong>{peakDay.day}</strong> ({peakDay.activity} avg messages)
-        </span>
-      </div>
+      {hasData && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginTop: '16px',
+          padding: '12px',
+          background: `${tokens.colors.accentPrimary}10`,
+          borderRadius: '8px',
+        }}>
+          <Zap size={16} style={{ color: tokens.colors.accentPrimary }} />
+          <span style={{ fontSize: '13px', color: tokens.colors.textSecondary }}>
+            Most active day: <strong>{peakDay.day}</strong> ({peakDay.activity} avg messages)
+          </span>
+        </div>
+      )}
     </div>
   );
 };
@@ -959,7 +1009,11 @@ const DailyPatterns = ({ data }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
   const [hoveredStat, setHoveredStat] = useState<'read' | 'write' | null>(null);
-  const hitRate = ((cacheRead / (cacheRead + cacheWrite)) * 100).toFixed(1);
+  const safeCacheRead = Number(cacheRead) || 0;
+  const safeCacheWrite = Number(cacheWrite) || 0;
+  const cacheTotal = safeCacheRead + safeCacheWrite;
+  const hitRateValue = cacheTotal > 0 ? (safeCacheRead / cacheTotal) * 100 : 0;
+  const hitRate = hitRateValue.toFixed(1);
 
   return (
     <div style={{
@@ -1009,7 +1063,7 @@ const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
               stroke={hoveredStat === 'read' ? tokens.colors.semanticSuccess : hoveredStat === 'write' ? tokens.colors.accentPrimary : tokens.colors.semanticSuccess}
               strokeWidth={hoveredStat ? 14 : 12}
               strokeLinecap="round"
-              strokeDasharray={`${(parseFloat(hitRate) / 100) * 377} 377`}
+              strokeDasharray={`${(hitRateValue / 100) * 377} 377`}
               style={{ transition: 'all 0.3s ease' }}
             />
           </svg>
@@ -1498,6 +1552,8 @@ function DashboardContent() {
                   setTempTo(dateRange.to);
                   setShowPicker(!showPicker);
                 }}
+                title="Select date range"
+                aria-label="Select date range"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1798,6 +1854,7 @@ function DashboardContent() {
             {/* Actions */}
             <button
               onClick={handleRefresh}
+              title="Refresh data"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1821,6 +1878,7 @@ function DashboardContent() {
             </button>
             <button
               onClick={handleDownloadPNG}
+              title="Download PNG report"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1844,6 +1902,7 @@ function DashboardContent() {
             </button>
             <button
               onClick={toggleSettings}
+              title="Open settings"
               style={{
                 display: 'flex',
                 alignItems: 'center',
