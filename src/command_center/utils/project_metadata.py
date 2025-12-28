@@ -106,11 +106,12 @@ def auto_discover_project(
         absolute_path = reconstruct_absolute_path(project_id)
 
         projects[project_id] = {
-            'name': '',  # User will set via CLI
+            'name': '',  # User will set via UI
             'description': '',
             'absolute_path': absolute_path,
             'first_seen': now,
-            'last_seen': now
+            'last_seen': now,
+            'visible': True  # Default: show in project selector
         }
 
     return projects
@@ -183,3 +184,85 @@ def list_all_projects(json_path: str = PROJECTS_JSON_PATH) -> list[dict]:
     projects_list.sort(key=lambda p: p.get('last_seen', ''), reverse=True)
 
     return projects_list
+
+
+def update_project_fields(
+    project_id: str,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    visible: Optional[bool] = None,
+    json_path: str = PROJECTS_JSON_PATH
+) -> dict:
+    """
+    Update project fields (name, description, visible) via API.
+
+    Args:
+        project_id: Project identifier
+        name: New display name (optional)
+        description: New description (optional)
+        visible: Visibility flag (optional)
+        json_path: Path to projects JSON file
+
+    Returns:
+        Updated project data dict with project_id included
+
+    Raises:
+        ValueError: If project_id not found or validation fails
+    """
+    projects = load_projects_json(json_path)
+
+    if project_id not in projects:
+        raise ValueError(f"Project not found: {project_id}")
+
+    # Validacja name: max 100 znaków
+    if name is not None:
+        name = name.strip()
+        if len(name) > 100:
+            raise ValueError("Project name cannot exceed 100 characters")
+        projects[project_id]['name'] = name
+
+    # Validacja description: max 500 znaków
+    if description is not None:
+        description = description.strip()
+        if len(description) > 500:
+            raise ValueError("Project description cannot exceed 500 characters")
+        projects[project_id]['description'] = description
+
+    # Validacja visible: musi być boolean
+    if visible is not None:
+        if not isinstance(visible, bool):
+            raise ValueError("Visible must be a boolean value")
+        projects[project_id]['visible'] = visible
+
+    save_projects_json(projects, json_path)
+
+    # Zwróć zaktualizowany projekt z project_id
+    return {'project_id': project_id, **projects[project_id]}
+
+
+def ensure_visible_field(json_path: str = PROJECTS_JSON_PATH) -> int:
+    """
+    Backward compatibility: Add 'visible: true' to projects missing this field.
+
+    This function is called automatically by get_projects API to ensure
+    all projects have the visible field, even if they were created before
+    this feature was added.
+
+    Args:
+        json_path: Path to projects JSON file
+
+    Returns:
+        Number of projects updated
+    """
+    projects = load_projects_json(json_path)
+    updated_count = 0
+
+    for project_id, metadata in projects.items():
+        if 'visible' not in metadata:
+            metadata['visible'] = True
+            updated_count += 1
+
+    if updated_count > 0:
+        save_projects_json(projects, json_path)
+
+    return updated_count

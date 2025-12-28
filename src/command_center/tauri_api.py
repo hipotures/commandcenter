@@ -260,6 +260,87 @@ def export_png_report(date_from: str, date_to: str) -> dict:
         }
 
 
+def get_projects() -> dict:
+    """
+    Get all projects with metadata.
+
+    Returns:
+        {
+            "projects": [
+                {
+                    "project_id": "-home-xai-DEV-command-center",
+                    "name": "Command Center",
+                    "description": "Analytics tool",
+                    "absolute_path": "/home/xai/DEV/command-center",
+                    "first_seen": "2024-12-27T10:00:00+01:00",
+                    "last_seen": "2024-12-28T01:44:00+01:00",
+                    "visible": true
+                },
+                ...
+            ]
+        }
+    """
+    from command_center.utils.project_metadata import (
+        list_all_projects,
+        ensure_visible_field,
+        PROJECTS_JSON_PATH
+    )
+
+    # Backward compatibility: ensure all projects have visible field
+    ensure_visible_field(PROJECTS_JSON_PATH)
+
+    # Get all projects
+    projects = list_all_projects(PROJECTS_JSON_PATH)
+
+    return {"projects": projects}
+
+
+def update_project(
+    project_id: str,
+    name: str | None = None,
+    description: str | None = None,
+    visible: bool | None = None
+) -> dict:
+    """
+    Update project metadata fields.
+
+    Args:
+        project_id: Project identifier
+        name: New display name (optional)
+        description: New description (optional)
+        visible: Visibility flag (optional)
+
+    Returns:
+        {
+            "project": {
+                "project_id": "...",
+                "name": "...",
+                "description": "...",
+                "visible": true,
+                ...
+            }
+        }
+
+    Raises:
+        ValueError: If project not found or validation fails
+    """
+    from command_center.utils.project_metadata import (
+        update_project_fields,
+        PROJECTS_JSON_PATH
+    )
+
+    # Call validation and update function
+    updated_project = update_project_fields(
+        project_id=project_id,
+        name=name,
+        description=description,
+        visible=visible,
+        json_path=PROJECTS_JSON_PATH
+    )
+
+    return {"project": updated_project}
+
+
 def main():
     """CLI entry point for Tauri API."""
     parser = argparse.ArgumentParser(
@@ -357,6 +438,34 @@ def main():
         help="End date (YYYY-MM-DD)"
     )
 
+    # projects subcommand
+    projects_parser = subparsers.add_parser(
+        "projects",
+        help="Get all projects with metadata"
+    )
+
+    # update-project subcommand
+    update_project_parser = subparsers.add_parser(
+        "update-project",
+        help="Update project metadata"
+    )
+    update_project_parser.add_argument(
+        "--project-id", required=True,
+        help="Project identifier"
+    )
+    update_project_parser.add_argument(
+        "--name", required=False,
+        help="Display name"
+    )
+    update_project_parser.add_argument(
+        "--description", required=False,
+        help="Description"
+    )
+    update_project_parser.add_argument(
+        "--visible", type=int, choices=[0, 1], required=False,
+        help="Visibility flag (0 or 1)"
+    )
+
     args = parser.parse_args()
 
     try:
@@ -377,6 +486,17 @@ def main():
             result = get_limit_resets(args.date_from, args.date_to)
         elif args.command == "export-png":
             result = export_png_report(args.date_from, args.date_to)
+        elif args.command == "projects":
+            result = get_projects()
+        elif args.command == "update-project":
+            # Convert visible from int (0/1) to bool if provided
+            visible = bool(args.visible) if args.visible is not None else None
+            result = update_project(
+                args.project_id,
+                args.name,
+                args.description,
+                visible
+            )
         else:
             result = {"error": f"Unknown command: {args.command}"}
 

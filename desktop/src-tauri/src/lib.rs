@@ -2,7 +2,16 @@
 mod commands;
 mod python_bridge;
 
-use commands::{get_dashboard_bundle, get_day_details, get_model_details, get_session_details, get_limit_resets, export_png_report};
+use commands::{
+    get_dashboard_bundle,
+    get_day_details,
+    get_model_details,
+    get_session_details,
+    get_limit_resets,
+    export_png_report,
+    get_projects,
+    update_project,
+};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -25,7 +34,9 @@ pub fn run() {
       get_model_details,
       get_session_details,
       get_limit_resets,
-      export_png_report
+      export_png_report,
+      get_projects,
+      update_project
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

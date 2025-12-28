@@ -13,6 +13,8 @@ import {
   RefreshCw, Settings, Search, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 import { useDashboard, useLimitResets } from './state/queries';
+import { SettingsDrawer } from './components/drawers/SettingsDrawer';
+import { useAppStore } from './state/store';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLAUDE CODE DESIGN TOKENS
@@ -1238,6 +1240,9 @@ function DashboardContent() {
   const [showPicker, setShowPicker] = useState(false);
   const [shouldRefresh, setShouldRefresh] = useState(false);
 
+  // Settings drawer state
+  const { settingsOpen, toggleSettings } = useAppStore();
+
   // Auto-select granularity based on date range
   const calculateGranularity = (from: string, to: string): 'hour' | 'day' | 'week' | 'month' => {
     const startDate = new Date(from);
@@ -1851,17 +1856,21 @@ function DashboardContent() {
             >
               <Download size={18} color={tokens.colors.textMuted} />
             </button>
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: `1px solid ${tokens.colors.surfaceBorder}`,
-              background: 'transparent',
-              cursor: 'pointer',
-            }}>
+            <button
+              onClick={toggleSettings}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                border: `1px solid ${tokens.colors.surfaceBorder}`,
+                background: 'transparent',
+                cursor: 'pointer',
+              }}
+              aria-label="Open settings"
+            >
               <Settings size={18} color={tokens.colors.textMuted} />
             </button>
           </div>
@@ -1983,6 +1992,9 @@ function DashboardContent() {
           </div>
         </footer>
       </main>
+
+      {/* Settings Drawer */}
+      <SettingsDrawer isOpen={settingsOpen} onClose={toggleSettings} />
     </div>
   );
 }

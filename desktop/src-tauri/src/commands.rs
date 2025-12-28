@@ -167,6 +167,69 @@ pub async fn export_png_report(from: String, to: String) -> Result<Value, String
     call_python_api(&["export-png", "--from", &from, "--to", &to])
 }
 
+/// Get all projects with metadata.
+///
+/// # Returns
+///
+/// JSON object containing:
+/// - projects: array of project objects with:
+///   - project_id: unique identifier
+///   - name: display name
+///   - description: project description
+///   - absolute_path: full filesystem path
+///   - first_seen: ISO timestamp when first discovered
+///   - last_seen: ISO timestamp when last seen
+///   - visible: boolean visibility flag
+#[tauri::command]
+pub async fn get_projects() -> Result<Value, String> {
+    call_python_api(&["projects"])
+}
+
+/// Update project metadata fields.
+///
+/// # Arguments
+///
+/// * `project_id` - Project identifier (required)
+/// * `name` - New display name (optional)
+/// * `description` - New description (optional)
+/// * `visible` - Visibility flag (optional)
+///
+/// # Returns
+///
+/// JSON object containing:
+/// - project: updated project object
+#[tauri::command]
+pub async fn update_project(
+    project_id: String,
+    name: Option<String>,
+    description: Option<String>,
+    visible: Option<bool>,
+) -> Result<Value, String> {
+    // Build args as owned Strings to avoid lifetime issues
+    // Use --key=value format to avoid issues with project_id starting with hyphen
+    let mut args: Vec<String> = vec![
+        "update-project".to_string(),
+        format!("--project-id={}", project_id),
+    ];
+
+    // Collect optional parameters
+    if let Some(n) = name {
+        args.push(format!("--name={}", n));
+    }
+
+    if let Some(d) = description {
+        args.push(format!("--description={}", d));
+    }
+
+    if let Some(v) = visible {
+        args.push(format!("--visible={}", if v { "1" } else { "0" }));
+    }
+
+    // Convert to &str for call_python_api
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    call_python_api(&args_refs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

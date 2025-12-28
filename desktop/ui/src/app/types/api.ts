@@ -186,3 +186,29 @@ export interface ApiError {
   error: string;
   type?: string;
 }
+
+// Project management
+export interface Project {
+  project_id: string;
+  name: string;
+  description: string;
+  absolute_path: string;
+  first_seen: string;  // ISO timestamp
+  last_seen: string;   // ISO timestamp
+  visible: boolean;
+}
+
+export interface ProjectsResponse {
+  projects: Project[];
+}
+
+export interface UpdateProjectParams {
+  projectId: string;
+  name?: string;
+  description?: string;
+  visible?: boolean;
+}
+
+export interface UpdateProjectResponse {
+  project: Project;
+}
