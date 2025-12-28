@@ -342,7 +342,7 @@ const KPICard = ({ title, value, subtitle, trend, icon: Icon, accentColor = toke
     e.currentTarget.style.boxShadow = tokens.shadows.md;
   }}
   >
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', minHeight: '32px' }}>
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
@@ -379,6 +379,8 @@ const KPICard = ({ title, value, subtitle, trend, icon: Icon, accentColor = toke
       color: accentColor,
       fontFamily: "'DM Mono', 'SF Mono', monospace",
       letterSpacing: '-1px',
+      textAlign: 'left',
+      width: '100%',
     }}>
       {value}
     </div>
@@ -757,24 +759,25 @@ const ModelDistribution = ({ data, isExporting = false }: any) => {
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               border: `1px solid ${activeIndex === idx ? tokens.colors.accentPrimary : 'transparent'}`,
+              flexWrap: 'nowrap',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap' }}>
               <div style={{
                 width: '12px',
                 height: '12px',
                 borderRadius: '4px',
                 backgroundColor: chartColors[idx % chartColors.length],
               }} />
-              <span style={{ fontSize: '13px', fontWeight: '500', color: tokens.colors.textSecondary }}>
+              <span style={{ fontSize: '13px', fontWeight: '500', color: tokens.colors.textSecondary, whiteSpace: 'nowrap' }}>
                 {model.displayName}
               </span>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: tokens.colors.accentPrimary }}>
+            <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+              <div style={{ fontSize: '13px', fontWeight: '600', color: tokens.colors.accentPrimary, whiteSpace: 'nowrap' }}>
                 {(totalTokens > 0 ? (model.tokens / totalTokens) * 100 : 0).toFixed(1)}%
               </div>
-              <div style={{ fontSize: '10px', color: tokens.colors.textMuted }}>
+              <div style={{ fontSize: '10px', color: tokens.colors.textMuted, whiteSpace: 'nowrap' }}>
                 {formatNumber(model.tokens)} tok
               </div>
             </div>
@@ -923,6 +926,9 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], isExporting = f
           color: tokens.colors.textPrimary,
           fontSize: '16px',
           fontWeight: '600',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          minWidth: 'max-content',
         }}>
           <TrendingUp size={20} style={{ color: tokens.colors.accentPrimary }} />
           Activity Timeline
@@ -1050,7 +1056,9 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], isExporting = f
 
         {/* Legend */}
         <div style={{
-          width: '160px',
+          width: 'max-content',
+          minWidth: 'max-content',
+          maxWidth: '220px',
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
@@ -1084,6 +1092,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], isExporting = f
                   opacity: hasLimitData ? 1 : 0.4,
                   cursor: hasLimitData ? 'pointer' : 'not-allowed',
                   transition: 'all 0.2s ease',
+                  width: '100%',
                 }}
               >
                 <input
@@ -1122,6 +1131,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [], isExporting = f
                   color: tokens.colors.textSecondary,
                   fontWeight: '500',
                   userSelect: 'none',
+                  whiteSpace: 'nowrap',
                 }}>
                   {limit.label}
                 </span>
@@ -1421,10 +1431,11 @@ const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             border: `1px solid ${hoveredStat === 'read' ? tokens.colors.semanticSuccess : 'transparent'}`,
+            flexWrap: 'nowrap',
           }}
         >
-          <span style={{ fontSize: '13px', color: tokens.colors.textMuted }}>Cache Read</span>
-          <span style={{ fontSize: '14px', fontWeight: '600', color: hoveredStat === 'read' ? tokens.colors.semanticSuccess : tokens.colors.accentPrimary }}>
+          <span style={{ fontSize: '13px', color: tokens.colors.textMuted, whiteSpace: 'nowrap' }}>Cache Read</span>
+          <span style={{ fontSize: '14px', fontWeight: '600', color: hoveredStat === 'read' ? tokens.colors.semanticSuccess : tokens.colors.accentPrimary, whiteSpace: 'nowrap', flexShrink: 0 }}>
             {formatNumber(cacheRead)} tok
           </span>
         </div>
@@ -1441,10 +1452,11 @@ const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             border: `1px solid ${hoveredStat === 'write' ? tokens.colors.accentPrimary : 'transparent'}`,
+            flexWrap: 'nowrap',
           }}
         >
-          <span style={{ fontSize: '13px', color: tokens.colors.textMuted }}>Cache Write</span>
-          <span style={{ fontSize: '14px', fontWeight: '600', color: hoveredStat === 'write' ? tokens.colors.accentPrimary : tokens.colors.accentPrimary }}>
+          <span style={{ fontSize: '13px', color: tokens.colors.textMuted, whiteSpace: 'nowrap' }}>Cache Write</span>
+          <span style={{ fontSize: '14px', fontWeight: '600', color: hoveredStat === 'write' ? tokens.colors.accentPrimary : tokens.colors.accentPrimary, whiteSpace: 'nowrap', flexShrink: 0 }}>
             {formatNumber(cacheWrite)} tok
           </span>
         </div>
@@ -2444,6 +2456,7 @@ function DashboardContent() {
       {/* Main content */}
       <main
         ref={dashboardRef}
+        data-exporting={isExporting ? 'true' : undefined}
         style={{
           maxWidth: '1600px',
           margin: '0 auto',
@@ -2456,6 +2469,10 @@ function DashboardContent() {
               [data-export-hide-scrollbar]::-webkit-scrollbar {
                 width: 0 !important;
                 height: 0 !important;
+              }
+              [data-exporting='true'] .recharts-tooltip-wrapper,
+              [data-exporting='true'] .recharts-tooltip-cursor {
+                display: none !important;
               }
             `}
           </style>
