@@ -35,6 +35,7 @@ class MessageEntry:
     cache_write_tokens: int = 0
     total_tokens: int = 0
     source_file: str = ""
+    project_id: str = "unknown"
 
 
 @dataclass

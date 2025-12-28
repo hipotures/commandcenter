@@ -5,7 +5,7 @@ import sqlite3
 from typing import Optional
 
 
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 
 
 def get_schema_version(conn: sqlite3.Connection) -> int:
@@ -81,7 +81,8 @@ def create_message_entries_table(conn: sqlite3.Connection):
             cache_read_tokens INTEGER DEFAULT 0,
             cache_write_tokens INTEGER DEFAULT 0,
             total_tokens INTEGER DEFAULT 0,
-            source_file TEXT NOT NULL
+            source_file TEXT NOT NULL,
+            project_id TEXT DEFAULT 'unknown'
         )
     """)
     cursor.execute("""
@@ -99,6 +100,10 @@ def create_message_entries_table(conn: sqlite3.Connection):
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_entries_model
         ON message_entries(model)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_entries_project_id
+        ON message_entries(project_id)
     """)
     conn.commit()
 
@@ -217,6 +222,35 @@ def init_database(conn: sqlite3.Connection):
         run_migrations(conn, current_version, CURRENT_SCHEMA_VERSION)
 
 
+def migrate_to_v3(conn: sqlite3.Connection):
+    """
+    Migration to v3: Add project_id column to message_entries.
+
+    Adds project_id field with default value 'unknown'.
+    Requires --rebuild-db to populate with actual project IDs from file paths.
+    """
+    cursor = conn.cursor()
+
+    # Check if column already exists (idempotency)
+    cursor.execute("PRAGMA table_info(message_entries)")
+    columns = [row[1] for row in cursor.fetchall()]
+
+    if 'project_id' not in columns:
+        # Add column with default value
+        cursor.execute("""
+            ALTER TABLE message_entries
+            ADD COLUMN project_id TEXT DEFAULT 'unknown'
+        """)
+
+        # Create index for future filtering
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_entries_project_id
+            ON message_entries(project_id)
+        """)
+
+        conn.commit()
+
+
 def run_migrations(conn: sqlite3.Connection, from_version: int, to_version: int):
     """
     Run database migrations from one version to another.
@@ -230,6 +264,11 @@ def run_migrations(conn: sqlite3.Connection, from_version: int, to_version: int)
     if from_version < 2 and to_version >= 2:
         create_limit_events_table(conn)
         set_schema_version(conn, 2)
+
+    # Migration to v3: Add project_id to message_entries
+    if from_version < 3 and to_version >= 3:
+        migrate_to_v3(conn)
+        set_schema_version(conn, 3)
 
 
 def check_integrity(conn: sqlite3.Connection) -> bool:

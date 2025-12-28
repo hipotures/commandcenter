@@ -19,6 +19,7 @@ from command_center.visualization.png_generator import generate_usage_report_png
 from command_center.visualization.terminal_display import display_png_in_terminal
 from command_center.utils.console_output import show_db_stats
 from command_center.utils.pricing import update_pricing_cache
+from command_center.cli.project_commands import list_projects_command, update_project_command
 
 
 console = Console()
@@ -114,6 +115,19 @@ def parse_args():
         help="Update pricing cache from LiteLLM and exit"
     )
 
+    # Project management commands
+    parser.add_argument(
+        "--list-projects",
+        action="store_true",
+        help="List all discovered projects with metadata"
+    )
+    parser.add_argument(
+        "--update-project",
+        nargs=3,
+        metavar=("PROJECT_ID", "NAME", "DESCRIPTION"),
+        help="Update project: PROJECT_ID 'name' 'description'"
+    )
+
     args = parser.parse_args()
 
     # Parse and validate dates
@@ -152,6 +166,16 @@ def rebuild_database(conn):
 def main():
     """Main entry point"""
     args = parse_args()
+
+    # Handle project management commands
+    if args.list_projects:
+        list_projects_command()
+        return
+
+    if args.update_project:
+        project_id, name, description = args.update_project
+        update_project_command(project_id, name=name, description=description)
+        return
 
     # Update pricing cache and exit
     if args.update_pricing:

@@ -30,7 +30,7 @@ def insert_message_entries(conn: sqlite3.Connection, entries: list[MessageEntry]
                 e.entry_hash, e.timestamp, e.timestamp_local, e.year, e.date,
                 e.session_id, e.request_id, e.message_id, e.model, e.cost_usd,
                 e.input_tokens, e.output_tokens, e.cache_read_tokens,
-                e.cache_write_tokens, e.total_tokens, e.source_file
+                e.cache_write_tokens, e.total_tokens, e.source_file, e.project_id
             )
             for e in batch
         ]
@@ -39,8 +39,8 @@ def insert_message_entries(conn: sqlite3.Connection, entries: list[MessageEntry]
             INSERT OR IGNORE INTO message_entries
             (entry_hash, timestamp, timestamp_local, year, date, session_id,
              request_id, message_id, model, cost_usd, input_tokens, output_tokens,
-             cache_read_tokens, cache_write_tokens, total_tokens, source_file)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             cache_read_tokens, cache_write_tokens, total_tokens, source_file, project_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, rows)
 
     conn.commit()

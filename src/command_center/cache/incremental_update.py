@@ -14,6 +14,9 @@ from command_center.database.queries import (
 )
 from command_center.cache.file_tracker import detect_file_changes
 from command_center.utils.date_helpers import format_datetime_hour, parse_and_convert_to_local
+from command_center.utils.project_metadata import (
+    load_projects_json, save_projects_json, auto_discover_project
+)
 
 
 def perform_incremental_update(conn: sqlite3.Connection,
@@ -53,9 +56,13 @@ def perform_incremental_update(conn: sqlite3.Connection,
     if not files_to_process:
         return 0
 
-    # Track affected hours and years for aggregate recomputation
+    # Load project metadata at start
+    projects = load_projects_json()
+
+    # Track affected hours, years, and discovered projects
     affected_hours = set()
     affected_years = set()
+    discovered_project_ids = set()
 
     # Process files with progress bar (always shown)
     with Progress(
@@ -68,7 +75,7 @@ def perform_incremental_update(conn: sqlite3.Connection,
 
         for file_path in files_to_process:
             entry_count = process_file(
-                conn, file_path, affected_hours, affected_years
+                conn, file_path, affected_hours, affected_years, discovered_project_ids
             )
             progress.update(task, advance=1)
 
@@ -90,11 +97,22 @@ def perform_incremental_update(conn: sqlite3.Connection,
         for year in affected_years:
             recompute_model_aggregates(conn, year)
 
+    # Auto-discover new projects and save metadata
+    if discovered_project_ids:
+        for project_id in discovered_project_ids:
+            projects = auto_discover_project(projects, project_id)
+        save_projects_json(projects)
+
+        if verbose:
+            from rich.console import Console
+            Console().print(f"[dim]Discovered {len(discovered_project_ids)} projects[/dim]")
+
     return len(files_to_process)
 
 
 def process_file(conn: sqlite3.Connection, file_path: str,
-                affected_hours: set[str], affected_years: set[int]) -> int:
+                affected_hours: set[str], affected_years: set[int],
+                discovered_project_ids: set[str]) -> int:
     """
     Process a single .jsonl file.
 
@@ -105,6 +123,7 @@ def process_file(conn: sqlite3.Connection, file_path: str,
         file_path: Path to .jsonl file
         affected_hours: Set to collect affected datetime_hours
         affected_years: Set to collect affected years
+        discovered_project_ids: Set to collect discovered project IDs
 
     Returns:
         Number of valid entries processed
@@ -140,6 +159,10 @@ def process_file(conn: sqlite3.Connection, file_path: str,
                         datetime_hour = format_datetime_hour(dt_local)
                         affected_hours.add(datetime_hour)
                         affected_years.add(entry.year)
+
+                    # Track discovered project
+                    if entry.project_id and entry.project_id != 'unknown':
+                        discovered_project_ids.add(entry.project_id)
     except Exception:
         # File read error - skip
         return 0

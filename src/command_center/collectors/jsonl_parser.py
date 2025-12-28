@@ -8,6 +8,7 @@ from command_center.database.models import MessageEntry
 from command_center.utils.date_helpers import parse_and_convert_to_local, format_datetime_hour, format_date_key
 from command_center.collectors.deduplication import compute_entry_hash
 from command_center.utils.pricing import get_model_pricing, calculate_cost_usd
+from command_center.utils.project_helpers import extract_project_id
 
 
 def parse_jsonl_line(line: str, source_file: str) -> Optional[MessageEntry]:
@@ -15,6 +16,7 @@ def parse_jsonl_line(line: str, source_file: str) -> Optional[MessageEntry]:
     Parse a single JSONL line into MessageEntry.
 
     Converts UTC timestamp to local time for aggregation.
+    Extracts project_id from source file path.
 
     Args:
         line: Raw JSONL line
@@ -51,6 +53,9 @@ def parse_jsonl_line(line: str, source_file: str) -> Optional[MessageEntry]:
     year = dt_local.year
     date = format_date_key(dt_local)
     timestamp_local = dt_local.isoformat()
+
+    # Extract project_id from file path
+    project_id = extract_project_id(source_file)
 
     # Extract tokens
     usage = entry.get('message', {}).get('usage', {})
@@ -96,5 +101,6 @@ def parse_jsonl_line(line: str, source_file: str) -> Optional[MessageEntry]:
         cache_read_tokens=cache_read,
         cache_write_tokens=cache_write,
         total_tokens=total_tokens,
-        source_file=source_file
+        source_file=source_file,
+        project_id=project_id
     )
