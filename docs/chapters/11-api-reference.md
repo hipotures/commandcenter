@@ -323,9 +323,121 @@ with open("cc-usage-report-2025-01-01_2025-12-31.png", "wb") as f:
 
 **Usage:**
 ```python
-from command-center.visualization.terminal_display import display_png_in_terminal
+from command_center.visualization.terminal_display import display_png_in_terminal
 
 display_png_in_terminal(png_bytes)
+```
+
+---
+
+### Module: `command_center.tauri_api` (NEW in v2.0+)
+
+**Purpose:** JSON API bridge for Tauri desktop application
+
+The `tauri_api` module provides a command-line interface that outputs JSON for consumption by the Tauri desktop app. All functions write JSON to stdout.
+
+#### CLI Commands
+
+**Dashboard Endpoint:**
+```bash
+python -m command_center.tauri_api dashboard \
+  --from 2025-01-01 \
+  --to 2025-12-31 \
+  --refresh 0 \
+  --granularity month \
+  --project PROJECT_ID  # Optional (v3)
+```
+
+**Returns:**
+- `daily_stats`: Array of daily activity data
+- `timeline`: Timeline data (month/week/day granularity)
+- `model_distribution`: Per-model token distribution
+- `hourly_profile`: 24-hour activity profile
+- `recent_sessions`: Last 10 sessions
+- `totals`: Aggregate statistics
+- `limit_events`: Session limit events (v2)
+- `png_base64`: Base64-encoded PNG report
+
+**Day Details Endpoint:**
+```bash
+python -m command_center.tauri_api day \
+  --date 2025-06-15 \
+  --project PROJECT_ID  # Optional (v3)
+```
+
+**Returns:**
+- `date`: Query date
+- `total_messages`: Message count
+- `total_sessions`: Session count
+- `total_tokens`: Token total
+- `hourly_breakdown`: Per-hour statistics
+- `top_models`: Model usage for this day
+- `sessions`: Session details
+
+**Model Details Endpoint:**
+```bash
+python -m command_center.tauri_api model \
+  --model claude-sonnet-4-20250514 \
+  --from 2025-01-01 \
+  --to 2025-12-31 \
+  --project PROJECT_ID  # Optional (v3)
+```
+
+**Returns:**
+- `model`: Model name (formatted)
+- `total_tokens`: Total tokens
+- `daily_usage`: Daily breakdown
+- `hourly_profile`: 24-hour profile
+
+**Session Details Endpoint:**
+```bash
+python -m command_center.tauri_api session --id SESSION_UUID
+```
+
+**Returns:**
+- `session_id`: Session UUID
+- `messages`: Array of messages
+- `total_tokens`: Session total
+- `model`: Model used
+
+#### Query Functions (NEW in v2.0+)
+
+**`query_timeline_data(conn, date_from, date_to, granularity, project_id=None)`**
+
+Returns timeline data for charts (month/week/day).
+
+**`query_model_distribution(conn, date_from, date_to, project_id=None)`**
+
+Returns per-model token distribution.
+
+**`query_hourly_profile(conn, date_from, date_to, project_id=None)`**
+
+Returns 24-hour activity profile (0-23).
+
+**`query_recent_sessions(conn, limit=10, project_id=None)`**
+
+Returns most recent sessions.
+
+**`query_totals(conn, date_from, date_to, project_id=None)`**
+
+Returns aggregate statistics.
+
+**`query_day_details(conn, date, project_id=None)`**
+
+Returns detailed breakdown for a specific day.
+
+**`query_model_details(conn, model, date_from, date_to, project_id=None)`**
+
+Returns model-specific analytics.
+
+**`query_session_details(conn, session_id)`**
+
+Returns full session message list.
+
+**Project Filtering (v3):**
+All query functions support optional `project_id` parameter for filtering by project:
+```python
+query_totals(conn, "2025-01-01", "2025-12-31", project_id="-home-user-dev-myproject")
 ```
 
 ---

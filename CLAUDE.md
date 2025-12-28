@@ -39,6 +39,31 @@ command-center --force-rescan
 
 # Rebuild database from scratch
 command-center --rebuild-db
+
+# Update pricing cache from LiteLLM
+command-center --update-pricing
+
+# List all discovered projects
+command-center --list-projects
+
+# Update project metadata
+command-center --update-project PROJECT_ID "Project Name" "Description"
+```
+
+### Tauri API (for desktop dashboard)
+
+```bash
+# Dashboard data (JSON output)
+python -m command_center.tauri_api dashboard --from 2025-01-01 --to 2025-12-31 --refresh 0 --granularity month
+
+# Day details
+python -m command_center.tauri_api day --date 2025-06-15
+
+# Model details
+python -m command_center.tauri_api model --model claude-sonnet-4-20250514 --from 2025-01-01 --to 2025-12-31
+
+# Session details
+python -m command_center.tauri_api session --id SESSION_UUID
 ```
 
 ### Without Installation
@@ -86,17 +111,22 @@ uv run command-center --verbose
 
 ### Database Schema
 
+**Current schema version: 3**
+
 **Core Tables:**
 - `message_entries`: Individual messages with deduplication via `entry_hash` (PRIMARY KEY)
+  - Includes `project_id` field for project-level filtering (added in v3)
 - `file_tracks`: Tracks processed files by `mtime_ns` and `size_bytes`
 - `hourly_aggregates`: Pre-computed hourly stats (indexed by `year`, `date`, `hour`)
 - `model_aggregates`: Per-model totals (composite PRIMARY KEY: `model`, `year`)
+- `limit_events`: Session limit tracking (5-hour, spending cap, context) - added in v2
 - `schema_version`: Migration tracking
 
 **Key Indexes:**
-- `message_entries`: `year`, `date`, `session_id`, `model`
+- `message_entries`: `year`, `date`, `session_id`, `model`, `project_id`
 - `hourly_aggregates`: `year`, `date`, `hour`
 - `file_tracks`: `last_scanned`
+- `limit_events`: `(year, date)`, `(limit_type, year)`, `occurred_at_local`
 
 ### Time Handling
 
@@ -145,11 +175,46 @@ All configuration is in `config.py`:
 ## Data Models
 
 Key dataclasses in `database/models.py`:
-- `MessageEntry`: Individual message with tokens and cost
+- `MessageEntry`: Individual message with tokens, cost, and `project_id`
 - `HourlyAggregate`: Pre-computed hourly stats
 - `ModelAggregate`: Per-model statistics
+- `LimitEvent`: Session limit events (5-hour, spending cap, context)
 - `UsageStats`: Final output for visualization (with date_from, date_to)
 - `FileTrack`: File processing metadata
+- `FileStatus`: Change detection status (new, modified, unchanged)
+
+## Project Tracking
+
+**New in v3**: Command Center automatically tracks which Git repository/project each session belongs to.
+
+- Project IDs are derived from session file paths (e.g., `/home/user/dev/project` → `-home-user-dev-project`)
+- Metadata stored in `~/.claude/db/command-center-projects.json`
+- Each project has: `name`, `description`, `absolute_path`, `first_seen`, `last_seen`
+- Use `--list-projects` to see all discovered projects
+- Use `--update-project` to set friendly names and descriptions
+- Sessions with unknown projects are marked as `project_id = "unknown"`
+
+**Note**: After adding `project_id` support (schema v3), run `--rebuild-db` to populate project IDs for existing data.
+
+## Session Limit Tracking
+
+**New in v2**: Automatically parses and stores session limit events.
+
+- Tracks when users hit 5-hour limits, spending caps, or context limits
+- Parses reset times from summary messages (e.g., "resets 12am", "resets 6pm")
+- Data used by Tauri dashboard for limit insights
+- Stored in `limit_events` table with deduplication via `leaf_uuid`
+
+## Tauri Desktop Dashboard
+
+The `tauri_api.py` module provides a JSON API for the desktop dashboard:
+
+- **Dashboard endpoint**: Returns daily stats, timeline data, model distribution, hourly profile, recent sessions
+- **Day endpoint**: Detailed statistics for a specific day
+- **Model endpoint**: Per-model usage statistics
+- **Session endpoint**: Individual session details
+
+All endpoints output JSON to stdout for consumption by the Tauri app.
 
 ## Important Constraints
 
@@ -158,3 +223,4 @@ Key dataclasses in `database/models.py`:
 3. **Recompute aggregates** after any direct `message_entries` modifications
 4. **Use batch inserts** (BATCH_INSERT_SIZE=100) for performance
 5. **Database location** is fixed at `~/.claude/db/command_center.db` (not configurable)
+6. **After schema migrations** that add computed fields (like `project_id`), run `--rebuild-db` to backfill data

@@ -1,7 +1,7 @@
 # Command Center: Technical Documentation
 
-**Version:** 2.0.0
-**Last Updated:** 2025-12-27
+**Version:** 2.2.0
+**Last Updated:** 2025-12-28
 **Author:** Technical Documentation Team
 
 ---
@@ -18,13 +18,18 @@ Command Center is a SQLite-based analytics platform designed to process, analyze
 - Intelligent incremental updates (5 seconds for new data vs. 1-2 minutes for full scan)
 - Hourly aggregation with local timezone awareness
 - Multi-year analytics with model-specific statistics
+- Project-level tracking and filtering (v3 feature)
+- Session limit event tracking (5-hour limits, spending caps, context limits)
 - Visual usage reports with activity heatmaps
+- Desktop dashboard via Tauri API (JSON bridge for React UI)
 
 **Primary Use Cases:**
 - Usage reports for Claude Code activity
 - Usage pattern analysis across time zones
 - Token consumption tracking and cost analysis
 - Model comparison and performance metrics
+- Project-level analytics and filtering
+- Session limit monitoring and insights
 
 ---
 

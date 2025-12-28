@@ -102,6 +102,9 @@ command-center [OPTIONS]
 | `--force-rescan` | Boolean | False | Reprocess all files |
 | `--rebuild-db` | Boolean | False | Delete and rebuild database |
 | `--db-stats` | Boolean | False | Show database statistics and exit |
+| `--update-pricing` | Boolean | False | Update pricing cache from LiteLLM and exit |
+| `--list-projects` | Boolean | False | List all discovered projects with metadata |
+| `--update-project` | String[3] | - | Update project: PROJECT_ID "name" "description" |
 
 **Examples:**
 
@@ -120,6 +123,15 @@ command-center --rebuild-db --verbose
 
 # Show database statistics
 command-center --db-stats
+
+# Update pricing cache from LiteLLM
+command-center --update-pricing
+
+# List all discovered projects
+command-center --list-projects
+
+# Update project metadata
+command-center --update-project -home-user-dev-myproject "My Project" "Project description"
 ```
 
 ### System Requirements

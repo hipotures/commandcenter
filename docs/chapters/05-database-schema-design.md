@@ -2,12 +2,17 @@
 
 ### Schema Version Management
 
-**Current Version:** 1
-**Migration System:** Version-based with rollback support
+**Current Version:** 3
+**Migration System:** Version-based with automated migrations
+
+**Version History:**
+- **v1**: Initial schema (file_tracks, message_entries, hourly_aggregates, model_aggregates)
+- **v2**: Added limit_events table for session limit tracking
+- **v3**: Added project_id column to message_entries for project-level filtering
 
 ```python
 # Schema versioning
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 3
 
 def init_database(conn):
     create_schema_version_table(conn)
@@ -15,10 +20,14 @@ def init_database(conn):
 
     if current_version == 0:
         create_all_tables(conn)
-        set_schema_version(conn, 1)
+        set_schema_version(conn, CURRENT_SCHEMA_VERSION)
     elif current_version < CURRENT_SCHEMA_VERSION:
         run_migrations(conn, current_version, CURRENT_SCHEMA_VERSION)
 ```
+
+**Migration Notes:**
+- v2 → v3: Run `--rebuild-db` to populate project_id from file paths
+- All migrations are idempotent and safe to re-run
 
 ### Table Definitions
 
@@ -78,7 +87,7 @@ if current_fingerprint != cached_fingerprint:
 
 #### 3. `message_entries`
 
-**Purpose:** Store individual message records with UTC and local timestamps.
+**Purpose:** Store individual message records with UTC and local timestamps, including project affiliation.
 
 ```sql
 CREATE TABLE message_entries (
@@ -97,13 +106,15 @@ CREATE TABLE message_entries (
     cache_read_tokens INTEGER DEFAULT 0,
     cache_write_tokens INTEGER DEFAULT 0,
     total_tokens INTEGER DEFAULT 0,
-    source_file TEXT NOT NULL
+    source_file TEXT NOT NULL,
+    project_id TEXT DEFAULT 'unknown'  -- Added in v3
 );
 
 CREATE INDEX idx_entries_year ON message_entries(year);
 CREATE INDEX idx_entries_date ON message_entries(date);
 CREATE INDEX idx_entries_session ON message_entries(session_id);
 CREATE INDEX idx_entries_model ON message_entries(model);
+CREATE INDEX idx_entries_project_id ON message_entries(project_id);  -- Added in v3
 ```
 
 **Fields:**
@@ -117,18 +128,21 @@ CREATE INDEX idx_entries_model ON message_entries(model);
 - `cost_usd`: Cost in USD (can be NULL)
 - `*_tokens`: Token counts from usage object
 - `source_file`: Originating JSONL file (for debugging)
+- `project_id`: Derived from file path (e.g., "-home-user-dev-myproject") - **Added in v3**
 
 **Indexes:**
 - `idx_entries_year`: Enables fast year filtering
 - `idx_entries_date`: Enables fast date range queries
 - `idx_entries_session`: Groups by session for session analysis
 - `idx_entries_model`: Enables fast model filtering
+- `idx_entries_project_id`: Enables fast project filtering - **Added in v3**
 
 **Index Selection Rationale:**
 - Year queries are common (usage reports)
 - Date queries are common (daily activity heatmaps)
-- Session queries support future "session detail" views
+- Session queries support "session detail" views
 - Model queries support model comparison features
+- Project queries support project-level analytics and filtering
 
 #### 4. `hourly_aggregates`
 
@@ -243,6 +257,64 @@ ORDER BY total_tokens DESC
 LIMIT 3;
 ```
 
+#### 6. `limit_events`
+
+**Purpose:** Track session limit events (5-hour limits, spending caps, context limits) - **Added in v2**
+
+```sql
+CREATE TABLE limit_events (
+    leaf_uuid TEXT PRIMARY KEY,
+    limit_type TEXT NOT NULL,          -- '5-hour', 'session', 'spending_cap', 'context'
+    occurred_at TEXT NOT NULL,         -- UTC timestamp
+    occurred_at_local TEXT NOT NULL,   -- Local timestamp
+    year INTEGER NOT NULL,             -- Local year
+    date TEXT NOT NULL,                -- Local YYYY-MM-DD
+    hour INTEGER NOT NULL,             -- 0-23 local hour
+    reset_at_local TEXT NOT NULL,      -- When limit resets (local time)
+    reset_text TEXT,                   -- Original text (e.g., "resets 12am")
+    session_id TEXT,
+    summary_text TEXT,                 -- Full summary message
+    source_file TEXT NOT NULL
+);
+
+CREATE INDEX idx_limit_events_year_date ON limit_events(year, date);
+CREATE INDEX idx_limit_events_type ON limit_events(limit_type, year);
+CREATE INDEX idx_limit_events_occurred ON limit_events(occurred_at_local);
+```
+
+**Fields:**
+- `leaf_uuid`: Unique identifier from JSONL (primary key, prevents duplicates)
+- `limit_type`: Type of limit ('5-hour', 'session', 'spending_cap', 'context')
+- `occurred_at`: UTC timestamp when limit was reached
+- `occurred_at_local`: Local timestamp when limit was reached
+- `year`, `date`, `hour`: Extracted from local timestamp for filtering
+- `reset_at_local`: When the limit will reset (local time)
+- `reset_text`: Original reset text from summary (e.g., "resets 12am (Europe/Warsaw)")
+- `session_id`: Associated session UUID
+- `summary_text`: Full summary message for context
+- `source_file`: Originating JSONL file
+
+**Indexes:**
+- `idx_limit_events_year_date`: Fast filtering by date range
+- `idx_limit_events_type`: Filter by limit type and year
+- `idx_limit_events_occurred`: Chronological ordering
+
+**Use Cases:**
+- Dashboard limit insights (e.g., "You hit 5-hour limit 3 times this week")
+- Limit reset time predictions
+- Usage pattern analysis (when do users typically hit limits?)
+
+**Example Query:**
+```sql
+-- Count 5-hour limits in December 2025
+SELECT COUNT(*) as limit_count
+FROM limit_events
+WHERE limit_type = '5-hour'
+  AND year = 2025
+  AND date >= '2025-12-01'
+  AND date < '2026-01-01';
+```
+
 ### Index Strategy
 
 **Indexing Philosophy:**
@@ -263,12 +335,17 @@ LIMIT 3;
 | message_entries | idx_entries_date | date | Date range queries |
 | message_entries | idx_entries_session | session_id | Session grouping |
 | message_entries | idx_entries_model | model | Model filtering |
+| message_entries | idx_entries_project_id | project_id | Project filtering (v3) |
 | hourly_aggregates | PRIMARY | datetime_hour | Unique hour lookup |
 | hourly_aggregates | idx_hourly_year | year | Year filtering |
 | hourly_aggregates | idx_hourly_date | date | Date filtering |
 | hourly_aggregates | idx_hourly_hour | hour | Hour-of-day analysis |
 | model_aggregates | PRIMARY | (model, year) | Unique model/year |
 | model_aggregates | idx_model_year | year | Year filtering |
+| limit_events | PRIMARY | leaf_uuid | Deduplication (v2) |
+| limit_events | idx_limit_events_year_date | (year, date) | Date range queries (v2) |
+| limit_events | idx_limit_events_type | (limit_type, year) | Type filtering (v2) |
+| limit_events | idx_limit_events_occurred | occurred_at_local | Chronological ordering (v2) |
 
 **Index Cardinality:**
 - High cardinality (good for indexing): `entry_hash`, `session_id`, `date`

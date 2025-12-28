@@ -67,6 +67,7 @@ command-center/
 ├── src/command_center/
 │   ├── __main__.py              # Entry point & CLI
 │   ├── config.py                # Configuration constants
+│   ├── tauri_api.py             # JSON API for Tauri desktop app
 │   ├── database/
 │   │   ├── connection.py        # SQLite connection management
 │   │   ├── schema.py            # Schema definitions & migrations
@@ -75,6 +76,7 @@ command-center/
 │   ├── collectors/
 │   │   ├── file_scanner.py      # JSONL file discovery
 │   │   ├── jsonl_parser.py      # Line-by-line parsing
+│   │   ├── limit_parser.py      # Session limit event parsing
 │   │   └── deduplication.py     # Hash computation
 │   ├── cache/
 │   │   ├── file_tracker.py      # Change detection
@@ -86,9 +88,18 @@ command-center/
 │   ├── visualization/
 │   │   ├── png_generator.py     # Image rendering
 │   │   └── terminal_display.py  # Inline display
+│   ├── cli/
+│   │   └── project_commands.py  # Project management CLI
 │   └── utils/
 │       ├── date_helpers.py      # Time conversion
-│       └── console_output.py    # Rich tables
+│       ├── console_output.py    # Rich tables
+│       ├── model_names.py       # Model name formatting
+│       ├── pricing.py           # LiteLLM pricing cache
+│       ├── project_helpers.py   # Project ID extraction
+│       └── project_metadata.py  # JSON metadata management
+├── desktop/                     # Tauri desktop application
+│   ├── src-tauri/               # Rust backend
+│   └── ui/                      # React frontend
 ├── pyproject.toml               # Package metadata
 ├── requirements.txt             # Dependencies
 └── uv.lock                      # Locked dependencies
