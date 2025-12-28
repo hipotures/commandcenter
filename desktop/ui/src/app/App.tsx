@@ -12,7 +12,7 @@ import {
   Calendar, TrendingUp, Clock, Cpu, ChevronDown, Download,
   RefreshCw, Settings, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
-import { useDashboard, useLimitResets } from './state/queries';
+import { useDashboard, useLimitResets, useProjects } from './state/queries';
 import { SettingsDrawer } from './components/drawers/SettingsDrawer';
 import { ProjectSelector } from './components/ProjectSelector';
 import { useAppStore } from './state/store';
@@ -74,6 +74,12 @@ const formatNumber = (num: number): string => {
 
 const formatCurrency = (num: number): string => {
   return '$' + num.toFixed(2);
+};
+
+const getProjectDisplayName = (project: { name?: string | null; project_id: string }): string => {
+  if (project.name) return project.name;
+  const parts = project.project_id.split('-').filter(Boolean);
+  return parts[parts.length - 1] || project.project_id;
 };
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -1403,7 +1409,7 @@ const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // SESSIONS TABLE COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
-const SessionsTable = ({ sessions }: any) => {
+const SessionsTable = ({ sessions, isExporting = false }: any) => {
   const [sessionLimit, setSessionLimit] = useState('10');
   const visibleSessions = sessionLimit === 'all'
     ? sessions
@@ -1430,11 +1436,16 @@ const SessionsTable = ({ sessions }: any) => {
           color: tokens.colors.textPrimary,
           fontSize: '16px',
           fontWeight: '600',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
         }}>
           <MessageSquare size={20} style={{ color: tokens.colors.accentPrimary }} />
           Recent Sessions
         </div>
-        <div style={{ position: 'relative' }}>
+        <div
+          data-export-exclude={isExporting ? 'true' : undefined}
+          style={{ position: 'relative' }}
+        >
           <select
             value={sessionLimit}
             onChange={(event) => setSessionLimit(event.target.value)}
@@ -1471,7 +1482,14 @@ const SessionsTable = ({ sessions }: any) => {
         </div>
       </div>
       
-      <div style={{ overflowX: 'auto' }}>
+    <div
+      data-export-hide-scrollbar={isExporting ? 'true' : undefined}
+      style={{
+        overflowX: 'auto',
+        scrollbarWidth: isExporting ? 'none' : undefined,
+        msOverflowStyle: isExporting ? 'none' : undefined,
+      }}
+    >
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -1582,6 +1600,8 @@ function DashboardContent() {
   const [tempTo, setTempTo] = useState(defaultTo);
   const [showPicker, setShowPicker] = useState(false);
   const [shouldRefresh, setShouldRefresh] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const dashboardRef = useRef<HTMLElement | null>(null);
 
   // Settings drawer state and project filter
   const {
@@ -1631,6 +1651,7 @@ function DashboardContent() {
     granularity,
     selectedProjectId
   );
+  const { data: projectsData } = useProjects();
 
   // Fetch limit resets
   const { data: limitResets } = useLimitResets(
@@ -1649,17 +1670,41 @@ function DashboardContent() {
   // Handle download PNG button click
   const handleDownloadPNG = async () => {
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
       const { save } = await import('@tauri-apps/plugin-dialog');
       const { writeFile } = await import('@tauri-apps/plugin-fs');
+      const { toPng } = await import('html-to-image');
 
-      // Generate PNG on backend
-      const result = await invoke('export_png_report', {
-        from: dateRange.from,
-        to: dateRange.to,
-      });
+      if (!dashboardRef.current) {
+        throw new Error('Dashboard content not ready for export.');
+      }
 
-      const { filename, data } = result as { filename: string; data: string };
+      setIsExporting(true);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      const backgroundColor = getComputedStyle(document.documentElement)
+        .getPropertyValue('--color-background')
+        .trim() || '#ffffff';
+      let dataUrl: string;
+      try {
+        dataUrl = await toPng(dashboardRef.current, {
+          cacheBust: true,
+          pixelRatio: 2,
+          backgroundColor,
+          filter: (node) => !(node instanceof Element && node.hasAttribute('data-export-exclude')),
+        });
+      } finally {
+        setIsExporting(false);
+      }
+
+      const data = dataUrl.split(',')[1];
+      const now = new Date();
+      const pad = (value: number) => value.toString().padStart(2, '0');
+      const timestamp = [
+        now.getFullYear(),
+        pad(now.getMonth() + 1),
+        pad(now.getDate()),
+      ].join('') + `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      const filename = `cc-dashboard-${timestamp}.png`;
 
       // Show save dialog
       const filePath = await save({
@@ -1817,6 +1862,14 @@ function DashboardContent() {
     },
     trends: apiData.trends
   };
+  const appVersion = apiData.meta?.app_version;
+  const visibleProjects = projectsData?.projects.filter((project: any) => project.visible) || [];
+  const selectedProject = visibleProjects.find((project: any) => project.project_id === selectedProjectId);
+  const projectLabel = selectedProject
+    ? getProjectDisplayName(selectedProject)
+    : selectedProjectId
+      ? getProjectDisplayName({ project_id: selectedProjectId })
+      : 'All Projects';
   
   return (
     <div style={{
@@ -2273,11 +2326,117 @@ function DashboardContent() {
       </header>
       
       {/* Main content */}
-      <main style={{
-        maxWidth: '1600px',
-        margin: '0 auto',
-        padding: '32px',
-      }}>
+      <main
+        ref={dashboardRef}
+        style={{
+          maxWidth: '1600px',
+          margin: '0 auto',
+          padding: '32px',
+        }}
+      >
+        {isExporting && (
+          <style>
+            {`
+              [data-export-hide-scrollbar]::-webkit-scrollbar {
+                width: 0 !important;
+                height: 0 !important;
+              }
+            `}
+          </style>
+        )}
+        {isExporting && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(320px, 1fr) auto',
+              alignItems: 'center',
+              gap: '24px',
+              padding: '22px 26px',
+              borderRadius: '18px',
+              background: `linear-gradient(135deg, ${tokens.colors.surface}, ${tokens.colors.background})`,
+              border: `1px solid ${tokens.colors.surfaceBorder}`,
+              boxShadow: tokens.shadows.md,
+              marginBottom: '24px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+              <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                background: `linear-gradient(135deg, ${tokens.colors.accentPrimary}, ${tokens.colors.accentSecondary})`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <Zap size={22} color={tokens.colors.surface} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: tokens.colors.textPrimary,
+                  letterSpacing: '-0.4px',
+                  whiteSpace: 'nowrap',
+                }}>
+                  Command Center
+                </div>
+                <div style={{
+                  fontSize: '12px',
+                  color: tokens.colors.textMuted,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.6px',
+                  whiteSpace: 'nowrap',
+                }}>
+                  Claude Code Analytics Dashboard
+                </div>
+              </div>
+            </div>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              flexWrap: 'nowrap',
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                borderRadius: '999px',
+                border: `1px solid ${tokens.colors.surfaceBorder}`,
+                background: tokens.colors.background,
+                whiteSpace: 'nowrap',
+              }}>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.6px', color: tokens.colors.textMuted }}>
+                  Projects
+                </span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: tokens.colors.textPrimary }}>
+                  {projectLabel}
+                </span>
+              </div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                borderRadius: '999px',
+                border: `1px solid ${tokens.colors.surfaceBorder}`,
+                background: tokens.colors.background,
+                whiteSpace: 'nowrap',
+              }}>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.6px', color: tokens.colors.textMuted }}>
+                  Date range
+                </span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: tokens.colors.textPrimary }}>
+                  {dateRange.from} → {dateRange.to}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
         {/* KPI Cards */}
         <div style={{
           display: 'grid',
@@ -2367,23 +2526,32 @@ function DashboardContent() {
         </div>
         
         {/* Sessions Table */}
-        <SessionsTable sessions={data.sessions} />
+        <SessionsTable sessions={data.sessions} isExporting={isExporting} />
         
         {/* Footer */}
-        <footer style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: '40px',
-          padding: '20px 0',
-          borderTop: `1px solid ${tokens.colors.surfaceBorder}`,
-        }}>
-          <div style={{ fontSize: '13px', color: tokens.colors.textMuted }}>
-            Last updated: {new Date().toLocaleString()} • DB Size: 52.3 MB • 
-            <span style={{ color: tokens.colors.semanticSuccess, marginLeft: '8px' }}>● Connected</span>
+        <footer
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: '40px',
+            padding: '20px 0',
+            borderTop: `1px solid ${tokens.colors.surfaceBorder}`,
+            gap: '16px',
+          }}
+        >
+          <div style={{ fontSize: '13px', color: tokens.colors.textMuted, flex: '1 1 60%', minWidth: 0 }}>
+            <span>Last updated: {new Date().toLocaleString()}</span>
+            <span data-export-exclude="true"> • DB Size: 52.3 MB • </span>
+            <span
+              data-export-exclude="true"
+              style={{ color: tokens.colors.semanticSuccess, marginLeft: '8px' }}
+            >
+              ● Connected
+            </span>
           </div>
-          <div style={{ fontSize: '13px', color: tokens.colors.textMuted }}>
-            Command Center v2.2.0 • Powered by Claude Code
+          <div style={{ fontSize: '13px', color: tokens.colors.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            Command Center{appVersion ? ` v${appVersion}` : ''} • Powered by Claude Code
           </div>
         </footer>
       </main>

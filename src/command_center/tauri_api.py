@@ -14,8 +14,10 @@ import argparse
 import json
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Literal
 
+from command_center import __version__ as package_version
 from command_center.database.connection import get_db_connection
 from command_center.database.schema import init_database
 from command_center.database.queries import (
@@ -51,6 +53,22 @@ def calculate_trend(current: float, previous: float) -> float:
 
     change = ((current - previous) / previous) * 100
     return round(change, 1)
+
+
+def get_app_version() -> str:
+    version = package_version
+    if version.endswith("-dev"):
+        pyproject_path = Path(__file__).resolve().parents[2] / "pyproject.toml"
+        if pyproject_path.exists():
+            try:
+                import tomllib  # Python 3.11+
+            except ImportError:
+                tomllib = None
+            if tomllib is not None:
+                with pyproject_path.open("rb") as handle:
+                    data = tomllib.load(handle)
+                version = data.get("project", {}).get("version", version)
+    return version
 
 
 def get_previous_period(date_from: str, date_to: str) -> tuple[str, str]:
@@ -164,7 +182,8 @@ def get_dashboard_bundle(
             "meta": {
                 "updated_files": updated_files,
                 "generated_at": datetime.now().isoformat(),
-                "data_range": data_range
+                "data_range": data_range,
+                "app_version": get_app_version(),
             }
         }
 

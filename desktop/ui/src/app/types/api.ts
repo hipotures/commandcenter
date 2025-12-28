@@ -92,6 +92,7 @@ export interface DashboardBundle {
       start: string | null;
       end: string | null;
     };
+    app_version?: string;
   };
 }
 
