@@ -54,16 +54,16 @@ command-center --update-project PROJECT_ID "Project Name" "Description"
 
 ```bash
 # Dashboard data (JSON output)
-python -m command_center.tauri_api dashboard --from 2025-01-01 --to 2025-12-31 --refresh 0 --granularity month
+python -m command_center.tauri_api dashboard --from 2025-01-01 --to 2025-12-31 --refresh 0 --granularity month --project-id PROJECT_ID
 
 # Day details
-python -m command_center.tauri_api day --date 2025-06-15
+python -m command_center.tauri_api day --date 2025-06-15 --project-id PROJECT_ID
 
 # Model details
-python -m command_center.tauri_api model --model claude-sonnet-4-20250514 --from 2025-01-01 --to 2025-12-31
+python -m command_center.tauri_api model --model claude-sonnet-4-20250514 --from 2025-01-01 --to 2025-12-31 --project-id PROJECT_ID
 
 # Session details
-python -m command_center.tauri_api session --id SESSION_UUID
+python -m command_center.tauri_api session --id SESSION_UUID --project-id PROJECT_ID
 
 # Limit reset events
 python -m command_center.tauri_api limits --from 2025-01-01 --to 2025-12-31
