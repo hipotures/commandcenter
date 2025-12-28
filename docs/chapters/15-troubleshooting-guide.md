@@ -29,7 +29,7 @@ command-center --db-stats
 command-center --force-rescan --verbose
 
 # Check specific year
-command-center --year 2024
+command-center --from 2024-01-01 --to 2024-12-31
 ```
 
 #### 2. Database Integrity Check Failed
@@ -209,13 +209,13 @@ time command-center --rebuild-db --verbose
 time command-center --verbose
 
 # Time query only
-time command-center --year 2025
+time command-center --from 2025-01-01 --to 2025-12-31
 ```
 
 #### Profile with cProfile
 
 ```bash
-python -m cProfile -o profile.stats -m command-center --verbose
+python -m cProfile -o profile.stats -m command_center --verbose
 ```
 
 ```python
@@ -225,4 +225,3 @@ p.sort_stats('cumulative').print_stats(20)
 ```
 
 ---
-

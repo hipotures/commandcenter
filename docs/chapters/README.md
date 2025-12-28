@@ -4,7 +4,7 @@ This directory contains the technical documentation split into separate chapters
 
 ## Overview
 
-Technical documentation split into 17 focused chapters (3,135 total lines).
+Technical documentation split into 17 focused chapters (3,134 total lines).
 
 ## Chapters
 
@@ -24,16 +24,16 @@ Technical documentation split into 17 focused chapters (3,135 total lines).
 | 12 | [Performance Characteristics](12-performance-characteristics.md) | 90 | 2.5 KB |
 | 13 | [Security & Data Privacy](13-security-data-privacy.md) | 108 | 2.2 KB |
 | 14 | [Deployment & Configuration](14-deployment-configuration.md) | 206 | 4.2 KB |
-| 15 | [Troubleshooting Guide](15-troubleshooting-guide.md) | 228 | 4.2 KB |
+| 15 | [Troubleshooting Guide](15-troubleshooting-guide.md) | 227 | 4.2 KB |
 | 16 | [Appendices](16-appendices.md) | 203 | 7.0 KB |
 | 17 | [Conclusion](17-conclusion.md) | 17 | 0.7 KB |
 
-**Total:** 3,135 lines across 17 chapter files
+**Total:** 3,134 lines across 17 chapter files
 
 ## Verification
 
 ```
-Split files total:      3135 lines
+Split files total:      3134 lines
 ```
 
 ✅ Line counts updated to match current chapter files.
