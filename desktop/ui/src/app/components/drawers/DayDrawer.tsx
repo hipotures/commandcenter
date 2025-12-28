@@ -2,6 +2,7 @@
  * Day Details Drawer - shows detailed stats for a specific day
  */
 import { useDayDetails } from '../../state/queries';
+import { useAppStore } from '../../state/store';
 import { Drawer } from './Drawer';
 import { HourlyChart } from '../charts/HourlyChart';
 
@@ -11,7 +12,8 @@ interface Props {
 }
 
 export function DayDrawer({ date, onClose }: Props) {
-  const { data, isLoading, error } = useDayDetails(date);
+  const { selectedProjectId } = useAppStore();
+  const { data, isLoading, error } = useDayDetails(date, selectedProjectId);
 
   const formatTokens = (value: number) => {
     if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;

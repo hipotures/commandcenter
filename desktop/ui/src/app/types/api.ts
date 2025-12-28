@@ -74,6 +74,12 @@ export interface SessionSummary {
 export interface DashboardBundle {
   range: DateRange;
   totals: Totals;
+  trends: {
+    messages: number;
+    sessions: number;
+    tokens: number;
+    cost: number;
+  };
   daily_activity: Record<string, number>;
   timeline: Timeline;
   model_distribution: ModelDistributionItem[];

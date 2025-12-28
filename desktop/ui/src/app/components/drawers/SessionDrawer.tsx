@@ -2,6 +2,7 @@
  * Session Details Drawer - shows detailed stats for a specific session
  */
 import { useSessionDetails } from '../../state/queries';
+import { useAppStore } from '../../state/store';
 import { Drawer } from './Drawer';
 
 interface Props {
@@ -10,7 +11,8 @@ interface Props {
 }
 
 export function SessionDrawer({ sessionId, onClose }: Props) {
-  const { data, isLoading, error } = useSessionDetails(sessionId);
+  const { selectedProjectId } = useAppStore();
+  const { data, isLoading, error } = useSessionDetails(sessionId, selectedProjectId);
 
   const formatTokens = (value: number) => {
     if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;

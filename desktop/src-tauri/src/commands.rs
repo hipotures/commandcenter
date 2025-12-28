@@ -40,6 +40,7 @@ pub async fn get_dashboard_bundle(
     granularity: String,
     project_id: Option<String>,
 ) -> Result<Value, String> {
+    eprintln!("[Rust] get_dashboard_bundle received project_id: {:?}", project_id);
     let refresh_str = if refresh { "1" } else { "0" };
 
     let mut args = vec![
@@ -55,11 +56,11 @@ pub async fn get_dashboard_bundle(
     ];
 
     if let Some(pid) = project_id {
-        args.push("--project-id".to_string());
-        args.push(pid);
+        args.push(format!("--project-id={}", pid));
     }
 
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    eprintln!("[Rust] get_dashboard_bundle args: {:?}", args_refs);
     call_python_api(&args_refs)
 }
 
@@ -83,11 +84,11 @@ pub async fn get_day_details(date: String, project_id: Option<String>) -> Result
     let mut args = vec!["day".to_string(), "--date".to_string(), date];
 
     if let Some(pid) = project_id {
-        args.push("--project-id".to_string());
-        args.push(pid);
+        args.push(format!("--project-id={}", pid));
     }
 
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    eprintln!("[Rust] get_dashboard_bundle args: {:?}", args_refs);
     call_python_api(&args_refs)
 }
 
@@ -127,11 +128,11 @@ pub async fn get_model_details(
     ];
 
     if let Some(pid) = project_id {
-        args.push("--project-id".to_string());
-        args.push(pid);
+        args.push(format!("--project-id={}", pid));
     }
 
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    eprintln!("[Rust] get_dashboard_bundle args: {:?}", args_refs);
     call_python_api(&args_refs)
 }
 
@@ -160,11 +161,11 @@ pub async fn get_session_details(
     let mut args = vec!["session".to_string(), "--id".to_string(), session_id];
 
     if let Some(pid) = project_id {
-        args.push("--project-id".to_string());
-        args.push(pid);
+        args.push(format!("--project-id={}", pid));
     }
 
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    eprintln!("[Rust] get_dashboard_bundle args: {:?}", args_refs);
     call_python_api(&args_refs)
 }
 

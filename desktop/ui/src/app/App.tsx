@@ -10,10 +10,11 @@ import {
 import {
   MessageSquare, Users, Coins, Zap, Flame, Database,
   Calendar, TrendingUp, Clock, Cpu, ChevronDown, Download,
-  RefreshCw, Settings, Search, ArrowUpRight, ArrowDownRight
+  RefreshCw, Settings, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 import { useDashboard, useLimitResets } from './state/queries';
 import { SettingsDrawer } from './components/drawers/SettingsDrawer';
+import { ProjectSelector } from './components/ProjectSelector';
 import { useAppStore } from './state/store';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1240,8 +1241,11 @@ function DashboardContent() {
   const [showPicker, setShowPicker] = useState(false);
   const [shouldRefresh, setShouldRefresh] = useState(false);
 
-  // Settings drawer state
-  const { settingsOpen, toggleSettings } = useAppStore();
+  // Settings drawer state and project filter
+  const { settingsOpen, toggleSettings, selectedProjectId } = useAppStore();
+
+  // Debug log
+  console.log('[DashboardContent] selectedProjectId:', selectedProjectId);
 
   // Auto-select granularity based on date range
   const calculateGranularity = (from: string, to: string): 'hour' | 'day' | 'week' | 'month' => {
@@ -1257,11 +1261,14 @@ function DashboardContent() {
 
   const granularity = calculateGranularity(dateRange.from, dateRange.to);
 
+  console.log('[DashboardContent] selectedProjectId from store:', selectedProjectId);
+
   const { data: apiData, isLoading, error } = useDashboard(
     dateRange.from,
     dateRange.to,
     shouldRefresh,
-    granularity
+    granularity,
+    selectedProjectId
   );
 
   // Fetch limit resets
@@ -1420,7 +1427,7 @@ function DashboardContent() {
       maxStreak: apiData.totals.max_streak,
       currentStreak: apiData.totals.current_streak,
     },
-    trends: apiData.trends || { messages: 0, sessions: 0, tokens: 0, cost: 0 }
+    trends: apiData.trends
   };
   
   return (
@@ -1480,30 +1487,9 @@ function DashboardContent() {
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {/* Search */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 16px',
-              background: tokens.colors.background,
-              borderRadius: '10px',
-              border: `1px solid ${tokens.colors.surfaceBorder}`,
-            }}>
-              <Search size={16} color={tokens.colors.textMuted} />
-              <input
-                type="text"
-                placeholder="Search sessions..."
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  outline: 'none',
-                  fontSize: '14px',
-                  color: tokens.colors.textSecondary,
-                  width: '160px',
-                }}
-              />
-            </div>
-            
+            {/* Project filter */}
+            <ProjectSelector />
+
             {/* Date range with Apply button */}
             <div style={{ position: 'relative' }}>
               <div

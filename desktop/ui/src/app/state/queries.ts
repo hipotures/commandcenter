@@ -31,8 +31,13 @@ const ENDPOINT_MAP: Record<string, string> = {
 
 // API adapter - uses Tauri invoke in desktop, fetch in browser
 async function apiCall<T>(endpoint: string, params: Record<string, any>): Promise<T> {
+  // Filter out null/undefined values
+  const filteredParams = Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v !== null && v !== undefined)
+  );
+
   if (isTauri) {
-    return invoke<T>(endpoint, params);
+    return invoke<T>(endpoint, filteredParams);
   } else {
     // Browser mode - use Vite dev server API
     const apiPath = ENDPOINT_MAP[endpoint] || endpoint;
@@ -47,7 +52,7 @@ async function apiCall<T>(endpoint: string, params: Record<string, any>): Promis
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(params),
+        body: JSON.stringify(filteredParams),
       });
       if (!response.ok) {
         const errorText = await response.text();
@@ -57,7 +62,7 @@ async function apiCall<T>(endpoint: string, params: Record<string, any>): Promis
     } else {
       // GET request with query params
       const queryParams = new URLSearchParams(
-        Object.entries(params).map(([k, v]) => [k, String(v)])
+        Object.entries(filteredParams).map(([k, v]) => [k, String(v)])
       ).toString();
       const response = await fetch(`/api/${apiPath}?${queryParams}`);
       if (!response.ok) {
@@ -73,19 +78,16 @@ export function useDashboard(
   from: string,
   to: string,
   refresh: boolean,
-  granularity: Granularity
+  granularity: Granularity,
+  projectId: string | null = null
 ) {
   return useQuery({
-    queryKey: ['dashboard', from, to, refresh, granularity],
+    queryKey: ['dashboard', from, to, refresh, granularity, projectId],
     queryFn: async () => {
-      console.log('[Dashboard] isTauri:', isTauri, 'params:', { from, to, refresh, granularity });
-      const result = await apiCall<DashboardBundle>('get_dashboard_bundle', {
-        from,
-        to,
-        refresh,
-        granularity,
-      });
-      console.log('[Dashboard] Got result');
+      const params = { from, to, refresh, granularity, projectId: projectId };
+      console.log('[Dashboard] Calling API with params:', JSON.stringify(params));
+      const result = await apiCall<DashboardBundle>('get_dashboard_bundle', params);
+      console.log('[Dashboard] Got result, totals.messages:', result.totals.messages);
       return result;
     },
     staleTime: 30_000, // 30 seconds
@@ -94,10 +96,10 @@ export function useDashboard(
 }
 
 // Day details query
-export function useDayDetails(date: string | null) {
+export function useDayDetails(date: string | null, projectId: string | null = null) {
   return useQuery({
-    queryKey: ['day', date],
-    queryFn: () => apiCall<DayDetails>('get_day_details', { date: date! }),
+    queryKey: ['day', date, projectId],
+    queryFn: () => apiCall<DayDetails>('get_day_details', { date: date!, projectId: projectId }),
     enabled: !!date,
     staleTime: 60_000, // 1 minute
   });
@@ -107,15 +109,17 @@ export function useDayDetails(date: string | null) {
 export function useModelDetails(
   model: string | null,
   from: string,
-  to: string
+  to: string,
+  projectId: string | null = null
 ) {
   return useQuery({
-    queryKey: ['model', model, from, to],
+    queryKey: ['model', model, from, to, projectId],
     queryFn: () =>
       apiCall<ModelDetails>('get_model_details', {
         model: model!,
         from,
         to,
+        projectId: projectId,
       }),
     enabled: !!model,
     staleTime: 60_000, // 1 minute
@@ -123,12 +127,13 @@ export function useModelDetails(
 }
 
 // Session details query
-export function useSessionDetails(sessionId: string | null) {
+export function useSessionDetails(sessionId: string | null, projectId: string | null = null) {
   return useQuery({
-    queryKey: ['session', sessionId],
+    queryKey: ['session', sessionId, projectId],
     queryFn: () =>
       apiCall<SessionDetails>('get_session_details', {
         sessionId: sessionId!,
+        projectId: projectId,
       }),
     enabled: !!sessionId,
     staleTime: 300_000, // 5 minutes

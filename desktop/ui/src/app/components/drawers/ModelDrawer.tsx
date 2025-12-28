@@ -11,8 +11,8 @@ interface Props {
 }
 
 export function ModelDrawer({ model, onClose }: Props) {
-  const { dateFrom, dateTo } = useAppStore();
-  const { data, isLoading, error } = useModelDetails(model, dateFrom, dateTo);
+  const { dateFrom, dateTo, selectedProjectId } = useAppStore();
+  const { data, isLoading, error } = useModelDetails(model, dateFrom, dateTo, selectedProjectId);
 
   const formatTokens = (value: number) => {
     if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
