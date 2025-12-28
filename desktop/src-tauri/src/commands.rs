@@ -20,6 +20,7 @@ use crate::python_bridge::call_python_api;
 /// * `to` - End date (YYYY-MM-DD)
 /// * `refresh` - Whether to perform incremental update
 /// * `granularity` - Timeline granularity (month/week/day)
+/// * `project_id` - Optional project filter
 ///
 /// # Returns
 ///
@@ -37,20 +38,29 @@ pub async fn get_dashboard_bundle(
     to: String,
     refresh: bool,
     granularity: String,
+    project_id: Option<String>,
 ) -> Result<Value, String> {
     let refresh_str = if refresh { "1" } else { "0" };
 
-    call_python_api(&[
-        "dashboard",
-        "--from",
-        &from,
-        "--to",
-        &to,
-        "--refresh",
-        refresh_str,
-        "--granularity",
-        &granularity,
-    ])
+    let mut args = vec![
+        "dashboard".to_string(),
+        "--from".to_string(),
+        from,
+        "--to".to_string(),
+        to,
+        "--refresh".to_string(),
+        refresh_str.to_string(),
+        "--granularity".to_string(),
+        granularity,
+    ];
+
+    if let Some(pid) = project_id {
+        args.push("--project-id".to_string());
+        args.push(pid);
+    }
+
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    call_python_api(&args_refs)
 }
 
 /// Get detailed statistics for a specific day.
@@ -58,6 +68,7 @@ pub async fn get_dashboard_bundle(
 /// # Arguments
 ///
 /// * `date` - Date (YYYY-MM-DD)
+/// * `project_id` - Optional project filter
 ///
 /// # Returns
 ///
@@ -68,8 +79,16 @@ pub async fn get_dashboard_bundle(
 /// - models: model distribution for the day
 /// - sessions: sessions active on the day
 #[tauri::command]
-pub async fn get_day_details(date: String) -> Result<Value, String> {
-    call_python_api(&["day", "--date", &date])
+pub async fn get_day_details(date: String, project_id: Option<String>) -> Result<Value, String> {
+    let mut args = vec!["day".to_string(), "--date".to_string(), date];
+
+    if let Some(pid) = project_id {
+        args.push("--project-id".to_string());
+        args.push(pid);
+    }
+
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    call_python_api(&args_refs)
 }
 
 /// Get detailed statistics for a specific model.
@@ -79,6 +98,7 @@ pub async fn get_day_details(date: String) -> Result<Value, String> {
 /// * `model` - Model identifier
 /// * `from` - Start date (YYYY-MM-DD)
 /// * `to` - End date (YYYY-MM-DD)
+/// * `project_id` - Optional project filter
 ///
 /// # Returns
 ///
@@ -94,16 +114,25 @@ pub async fn get_model_details(
     model: String,
     from: String,
     to: String,
+    project_id: Option<String>,
 ) -> Result<Value, String> {
-    call_python_api(&[
-        "model",
-        "--model",
-        &model,
-        "--from",
-        &from,
-        "--to",
-        &to,
-    ])
+    let mut args = vec![
+        "model".to_string(),
+        "--model".to_string(),
+        model,
+        "--from".to_string(),
+        from,
+        "--to".to_string(),
+        to,
+    ];
+
+    if let Some(pid) = project_id {
+        args.push("--project-id".to_string());
+        args.push(pid);
+    }
+
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    call_python_api(&args_refs)
 }
 
 /// Get detailed statistics for a specific session.
@@ -111,6 +140,7 @@ pub async fn get_model_details(
 /// # Arguments
 ///
 /// * `session_id` - Session identifier
+/// * `project_id` - Optional project filter
 ///
 /// # Returns
 ///
@@ -123,8 +153,19 @@ pub async fn get_model_details(
 /// - totals: aggregate statistics
 /// - messages: individual message breakdowns
 #[tauri::command]
-pub async fn get_session_details(session_id: String) -> Result<Value, String> {
-    call_python_api(&["session", "--id", &session_id])
+pub async fn get_session_details(
+    session_id: String,
+    project_id: Option<String>,
+) -> Result<Value, String> {
+    let mut args = vec!["session".to_string(), "--id".to_string(), session_id];
+
+    if let Some(pid) = project_id {
+        args.push("--project-id".to_string());
+        args.push(pid);
+    }
+
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    call_python_api(&args_refs)
 }
 
 /// Get limit reset events for a date range.
@@ -232,23 +273,6 @@ pub async fn update_project(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn test_dashboard_params_deserialize() {
-        let json = r#"{"from": "2025-01-01", "to": "2025-12-31", "refresh": true, "granularity": "month"}"#;
-        let params: DashboardParams = serde_json::from_str(json).unwrap();
-        assert_eq!(params.from, "2025-01-01");
-        assert_eq!(params.to, "2025-12-31");
-        assert!(params.refresh);
-        assert_eq!(params.granularity, "month");
-    }
-
-    #[test]
-    fn test_dashboard_params_default_granularity() {
-        let json = r#"{"from": "2025-01-01", "to": "2025-12-31"}"#;
-        let params: DashboardParams = serde_json::from_str(json).unwrap();
-        assert_eq!(params.granularity, "month");
-        assert!(!params.refresh);
-    }
+    // Note: Tests removed as DashboardParams struct no longer exists
+    // Commands now use individual parameters for simpler frontend integration
 }

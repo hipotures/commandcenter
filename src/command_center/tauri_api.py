@@ -83,7 +83,8 @@ def get_dashboard_bundle(
     date_from: str,
     date_to: str,
     refresh: bool,
-    granularity: Literal["month", "week", "day", "hour"]
+    granularity: Literal["month", "week", "day", "hour"],
+    project_id: str | None = None
 ) -> dict:
     """
     Generate complete dashboard JSON bundle.
@@ -93,6 +94,7 @@ def get_dashboard_bundle(
         date_to: End date (YYYY-MM-DD)
         refresh: If True, perform incremental update before querying
         granularity: Timeline grouping - 'month', 'week', 'day', or 'hour'
+        project_id: Optional project filter
 
     Returns:
         Complete dashboard data bundle as dict
@@ -106,19 +108,19 @@ def get_dashboard_bundle(
             updated_files = perform_incremental_update(conn, force_rescan=False, verbose=False)
 
         # Query all data for current period
-        totals = query_totals(conn, date_from, date_to)
-        daily_activity = query_daily_stats(conn, date_from, date_to)
-        timeline_data = query_timeline_data(conn, date_from, date_to, granularity)
-        model_distribution = query_model_distribution(conn, date_from, date_to)
-        hourly_profile = query_hourly_profile(conn, date_from, date_to)
-        recent_sessions = query_recent_sessions(conn, date_from, date_to, limit=20)
+        totals = query_totals(conn, date_from, date_to, project_id)
+        daily_activity = query_daily_stats(conn, date_from, date_to, project_id)
+        timeline_data = query_timeline_data(conn, date_from, date_to, granularity, project_id)
+        model_distribution = query_model_distribution(conn, date_from, date_to, project_id)
+        hourly_profile = query_hourly_profile(conn, date_from, date_to, project_id)
+        recent_sessions = query_recent_sessions(conn, date_from, date_to, limit=20, project_id=project_id)
 
         # Calculate streaks
         max_streak, current_streak = calculate_streaks(daily_activity)
 
         # Query previous period for trend calculation
         prev_from, prev_to = get_previous_period(date_from, date_to)
-        prev_totals = query_totals(conn, prev_from, prev_to)
+        prev_totals = query_totals(conn, prev_from, prev_to, project_id)
 
         # Calculate trends
         trends = {
@@ -163,22 +165,23 @@ def get_dashboard_bundle(
         }
 
 
-def get_day_details(date: str) -> dict:
+def get_day_details(date: str, project_id: str | None = None) -> dict:
     """
     Get detailed stats for a specific day.
 
     Args:
         date: Date (YYYY-MM-DD)
+        project_id: Optional project filter
 
     Returns:
         Day details with hourly breakdown, models, and sessions
     """
     with get_db_connection() as conn:
         init_database(conn)
-        return query_day_details(conn, date)
+        return query_day_details(conn, date, project_id)
 
 
-def get_model_details(model: str, date_from: str, date_to: str) -> dict:
+def get_model_details(model: str, date_from: str, date_to: str, project_id: str | None = None) -> dict:
     """
     Get detailed stats for a specific model.
 
@@ -186,28 +189,30 @@ def get_model_details(model: str, date_from: str, date_to: str) -> dict:
         model: Model identifier
         date_from: Start date (YYYY-MM-DD)
         date_to: End date (YYYY-MM-DD)
+        project_id: Optional project filter
 
     Returns:
         Model details with daily activity and top sessions
     """
     with get_db_connection() as conn:
         init_database(conn)
-        return query_model_details(conn, model, date_from, date_to)
+        return query_model_details(conn, model, date_from, date_to, project_id)
 
 
-def get_session_details(session_id: str) -> dict:
+def get_session_details(session_id: str, project_id: str | None = None) -> dict:
     """
     Get detailed stats for a specific session.
 
     Args:
         session_id: Session identifier
+        project_id: Optional project filter
 
     Returns:
         Session details with messages and totals
     """
     with get_db_connection() as conn:
         init_database(conn)
-        return query_session_details(conn, session_id)
+        return query_session_details(conn, session_id, project_id)
 
 
 def get_limit_resets(date_from: str, date_to: str) -> list[dict]:
@@ -371,6 +376,10 @@ def main():
         choices=["month", "week", "day", "hour"],
         help="Timeline granularity"
     )
+    dash_parser.add_argument(
+        "--project-id", dest="project_id", required=False, default=None,
+        help="Filter by project (optional)"
+    )
 
     # day subcommand
     day_parser = subparsers.add_parser(
@@ -380,6 +389,10 @@ def main():
     day_parser.add_argument(
         "--date", required=True,
         help="Date (YYYY-MM-DD)"
+    )
+    day_parser.add_argument(
+        "--project-id", dest="project_id", required=False, default=None,
+        help="Filter by project (optional)"
     )
 
     # model subcommand
@@ -399,6 +412,10 @@ def main():
         "--to", dest="date_to", required=True,
         help="End date (YYYY-MM-DD)"
     )
+    model_parser.add_argument(
+        "--project-id", dest="project_id", required=False, default=None,
+        help="Filter by project (optional)"
+    )
 
     # session subcommand
     session_parser = subparsers.add_parser(
@@ -408,6 +425,10 @@ def main():
     session_parser.add_argument(
         "--id", dest="session_id", required=True,
         help="Session identifier"
+    )
+    session_parser.add_argument(
+        "--project-id", dest="project_id", required=False, default=None,
+        help="Filter by project (optional)"
     )
 
     # limits subcommand
@@ -474,14 +495,15 @@ def main():
                 args.date_from,
                 args.date_to,
                 bool(args.refresh),
-                args.granularity
+                args.granularity,
+                args.project_id
             )
         elif args.command == "day":
-            result = get_day_details(args.date)
+            result = get_day_details(args.date, args.project_id)
         elif args.command == "model":
-            result = get_model_details(args.model, args.date_from, args.date_to)
+            result = get_model_details(args.model, args.date_from, args.date_to, args.project_id)
         elif args.command == "session":
-            result = get_session_details(args.session_id)
+            result = get_session_details(args.session_id, args.project_id)
         elif args.command == "limits":
             result = get_limit_resets(args.date_from, args.date_to)
         elif args.command == "export-png":

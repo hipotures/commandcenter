@@ -2,6 +2,7 @@
  * Global application state using Zustand
  */
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Granularity } from '../types/api';
 
 type DrawerType = 'messages' | 'sessions' | 'tokens' | 'cost' | 'streak' | 'cache' | null;
@@ -22,6 +23,10 @@ interface AppState {
   // Granularity
   granularity: Granularity;
   setGranularity: (g: Granularity) => void;
+
+  // Project filter
+  selectedProjectId: string | null;  // null = "All projects"
+  setSelectedProjectId: (projectId: string | null) => void;
 
   // Drill-down state
   selectedDay: string | null;
@@ -65,50 +70,64 @@ const now = new Date();
 const defaultFrom = `${now.getFullYear()}-01-01`;
 const defaultTo = today();
 
-export const useAppStore = create<AppState>((set) => ({
-  // Theme
-  darkMode: false,
-  setDarkMode: (darkMode) => set({ darkMode }),
-  toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      // Theme
+      darkMode: false,
+      setDarkMode: (darkMode) => set({ darkMode }),
+      toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
 
-  // Date range
-  dateFrom: defaultFrom,
-  dateTo: defaultTo,
-  setDateFrom: (dateFrom) => set({ dateFrom }),
-  setDateTo: (dateTo) => set({ dateTo }),
-  setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
+      // Date range
+      dateFrom: defaultFrom,
+      dateTo: defaultTo,
+      setDateFrom: (dateFrom) => set({ dateFrom }),
+      setDateTo: (dateTo) => set({ dateTo }),
+      setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
 
-  // Granularity
-  granularity: 'month',
-  setGranularity: (granularity) => set({ granularity }),
+      // Granularity
+      granularity: 'month',
+      setGranularity: (granularity) => set({ granularity }),
 
-  // Drill-down state
-  selectedDay: null,
-  selectedModel: null,
-  selectedSession: null,
-  setSelectedDay: (selectedDay) => set({ selectedDay }),
-  setSelectedModel: (selectedModel) => set({ selectedModel }),
-  setSelectedSession: (selectedSession) => set({ selectedSession }),
+      // Project filter
+      selectedProjectId: null,
+      setSelectedProjectId: (selectedProjectId) => set({ selectedProjectId }),
 
-  // Live mode
-  liveMode: false,
-  liveInterval: 30,
-  toggleLiveMode: () => set((s) => ({ liveMode: !s.liveMode })),
-  setLiveInterval: (liveInterval) => set({ liveInterval }),
+      // Drill-down state
+      selectedDay: null,
+      selectedModel: null,
+      selectedSession: null,
+      setSelectedDay: (selectedDay) => set({ selectedDay }),
+      setSelectedModel: (selectedModel) => set({ selectedModel }),
+      setSelectedSession: (selectedSession) => set({ selectedSession }),
 
-  // Selected items
-  selectedHour: null,
-  setSelectedHour: (selectedHour) => set({ selectedHour }),
+      // Live mode
+      liveMode: false,
+      liveInterval: 30,
+      toggleLiveMode: () => set((s) => ({ liveMode: !s.liveMode })),
+      setLiveInterval: (liveInterval) => set({ liveInterval }),
 
-  // Drawers
-  activeDrawer: null,
-  setActiveDrawer: (activeDrawer) => set({ activeDrawer }),
+      // Selected items
+      selectedHour: null,
+      setSelectedHour: (selectedHour) => set({ selectedHour }),
 
-  // Settings
-  settingsOpen: false,
-  toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
+      // Drawers
+      activeDrawer: null,
+      setActiveDrawer: (activeDrawer) => set({ activeDrawer }),
 
-  // Search
-  searchQuery: '',
-  setSearchQuery: (searchQuery) => set({ searchQuery }),
-}));
+      // Settings
+      settingsOpen: false,
+      toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
+
+      // Search
+      searchQuery: '',
+      setSearchQuery: (searchQuery) => set({ searchQuery }),
+    }),
+    {
+      name: 'command-center-app-state',
+      partialize: (state) => ({
+        selectedProjectId: state.selectedProjectId
+      }),
+    }
+  )
+);

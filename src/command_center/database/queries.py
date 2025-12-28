@@ -182,25 +182,38 @@ def recompute_model_aggregates(conn: sqlite3.Connection, year: int):
     conn.commit()
 
 
-def query_daily_stats(conn: sqlite3.Connection, date_from: str, date_to: str) -> dict[str, int]:
+def query_daily_stats(conn: sqlite3.Connection, date_from: str, date_to: str, project_id: Optional[str] = None) -> dict[str, int]:
     """
     Query daily statistics from hourly aggregates.
 
     Args:
         date_from: Start date (YYYY-MM-DD)
         date_to: End date (YYYY-MM-DD)
+        project_id: Optional project filter
 
     Returns:
         Dict mapping date (YYYY-MM-DD) → message_count
     """
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT date, SUM(message_count)
-        FROM hourly_aggregates
-        WHERE date >= ? AND date <= ?
-        GROUP BY date
-        ORDER BY date
-    """, (date_from, date_to))
+
+    if project_id:
+        # Query from message_entries when filtering by project
+        cursor.execute("""
+            SELECT date, COUNT(*) as message_count
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND project_id = ?
+            GROUP BY date
+            ORDER BY date
+        """, (date_from, date_to, project_id))
+    else:
+        # Use aggregates for all projects
+        cursor.execute("""
+            SELECT date, SUM(message_count)
+            FROM hourly_aggregates
+            WHERE date >= ? AND date <= ?
+            GROUP BY date
+            ORDER BY date
+        """, (date_from, date_to))
 
     return {row[0]: row[1] for row in cursor.fetchall()}
 
@@ -285,7 +298,8 @@ def query_timeline_data(
     conn: sqlite3.Connection,
     date_from: str,
     date_to: str,
-    granularity: Literal["month", "week", "day", "hour"]
+    granularity: Literal["month", "week", "day", "hour"],
+    project_id: Optional[str] = None
 ) -> list[dict]:
     """
     Query timeline data grouped by month/week/day/hour.
@@ -295,6 +309,7 @@ def query_timeline_data(
         date_from: Start date (YYYY-MM-DD)
         date_to: End date (YYYY-MM-DD)
         granularity: Grouping level - 'month', 'week', 'day', or 'hour'
+        project_id: Optional project filter
 
     Returns:
         List of dicts with period, messages, tokens, input_tokens, output_tokens, cost
@@ -314,17 +329,32 @@ def query_timeline_data(
         group_expr_agg = "date"
         group_expr_msg = "date"
 
-    cursor.execute(f"""
-        SELECT
-            {group_expr_agg} as period,
-            SUM(message_count) as messages,
-            SUM(total_tokens) as tokens,
-            SUM(total_cost_usd) as cost
-        FROM hourly_aggregates
-        WHERE date >= ? AND date <= ?
-        GROUP BY period
-        ORDER BY period
-    """, (date_from, date_to))
+    if project_id:
+        # Query from message_entries when filtering by project
+        cursor.execute(f"""
+            SELECT
+                {group_expr_msg} as period,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND project_id = ?
+            GROUP BY period
+            ORDER BY period
+        """, (date_from, date_to, project_id))
+    else:
+        # Use aggregates for all projects
+        cursor.execute(f"""
+            SELECT
+                {group_expr_agg} as period,
+                SUM(message_count) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(total_cost_usd) as cost
+            FROM hourly_aggregates
+            WHERE date >= ? AND date <= ?
+            GROUP BY period
+            ORDER BY period
+        """, (date_from, date_to))
 
     # Need input/output breakdown from message_entries
     # First get the basic aggregates
@@ -332,15 +362,26 @@ def query_timeline_data(
                   for row in cursor.fetchall()}
 
     # Now get input/output breakdown
-    cursor.execute(f"""
-        SELECT
-            {group_expr_msg} as period,
-            SUM(input_tokens) as input_tokens,
-            SUM(output_tokens) as output_tokens
-        FROM message_entries
-        WHERE date >= ? AND date <= ?
-        GROUP BY period
-    """, (date_from, date_to))
+    if project_id:
+        cursor.execute(f"""
+            SELECT
+                {group_expr_msg} as period,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND project_id = ?
+            GROUP BY period
+        """, (date_from, date_to, project_id))
+    else:
+        cursor.execute(f"""
+            SELECT
+                {group_expr_msg} as period,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens
+            FROM message_entries
+            WHERE date >= ? AND date <= ?
+            GROUP BY period
+        """, (date_from, date_to))
 
     token_breakdown = {row[0]: {"input_tokens": row[1] or 0, "output_tokens": row[2] or 0}
                        for row in cursor.fetchall()}
@@ -364,7 +405,8 @@ def query_timeline_data(
 def query_model_distribution(
     conn: sqlite3.Connection,
     date_from: str,
-    date_to: str
+    date_to: str,
+    project_id: Optional[str] = None
 ) -> list[dict]:
     """
     Query model distribution with input/output breakdown.
@@ -373,24 +415,41 @@ def query_model_distribution(
         conn: Database connection
         date_from: Start date (YYYY-MM-DD)
         date_to: End date (YYYY-MM-DD)
+        project_id: Optional project filter
 
     Returns:
         List of dicts with model stats, sorted by tokens descending
     """
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT
-            model,
-            SUM(total_tokens) as tokens,
-            SUM(input_tokens) as input_tokens,
-            SUM(output_tokens) as output_tokens,
-            COUNT(*) as messages,
-            SUM(COALESCE(cost_usd, 0)) as cost
-        FROM message_entries
-        WHERE date >= ? AND date <= ? AND model IS NOT NULL
-        GROUP BY model
-        ORDER BY tokens DESC
-    """, (date_from, date_to))
+
+    if project_id:
+        cursor.execute("""
+            SELECT
+                model,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                COUNT(*) as messages,
+                SUM(COALESCE(cost_usd, 0)) as cost
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND project_id = ? AND model IS NOT NULL
+            GROUP BY model
+            ORDER BY tokens DESC
+        """, (date_from, date_to, project_id))
+    else:
+        cursor.execute("""
+            SELECT
+                model,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                COUNT(*) as messages,
+                SUM(COALESCE(cost_usd, 0)) as cost
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND model IS NOT NULL
+            GROUP BY model
+            ORDER BY tokens DESC
+        """, (date_from, date_to))
 
     rows = cursor.fetchall()
     total_tokens = sum(r[1] or 0 for r in rows) or 1  # Avoid division by zero
@@ -413,7 +472,8 @@ def query_model_distribution(
 def query_hourly_profile(
     conn: sqlite3.Connection,
     date_from: str,
-    date_to: str
+    date_to: str,
+    project_id: Optional[str] = None
 ) -> list[dict]:
     """
     Query hourly activity profile (0-23).
@@ -422,37 +482,62 @@ def query_hourly_profile(
         conn: Database connection
         date_from: Start date (YYYY-MM-DD)
         date_to: End date (YYYY-MM-DD)
+        project_id: Optional project filter
 
     Returns:
         List of 24 dicts (one per hour) with hour, messages, tokens, input_tokens, output_tokens
     """
     cursor = conn.cursor()
 
-    # Get basic hourly stats from aggregates
-    cursor.execute("""
-        SELECT
-            hour,
-            SUM(message_count) as messages,
-            SUM(total_tokens) as tokens
-        FROM hourly_aggregates
-        WHERE date >= ? AND date <= ?
-        GROUP BY hour
-        ORDER BY hour
-    """, (date_from, date_to))
+    if project_id:
+        # Get basic hourly stats from message_entries when filtering by project
+        cursor.execute("""
+            SELECT
+                CAST(SUBSTR(timestamp_local, 12, 2) AS INTEGER) as hour,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND project_id = ?
+            GROUP BY hour
+            ORDER BY hour
+        """, (date_from, date_to, project_id))
+    else:
+        # Get basic hourly stats from aggregates
+        cursor.execute("""
+            SELECT
+                hour,
+                SUM(message_count) as messages,
+                SUM(total_tokens) as tokens
+            FROM hourly_aggregates
+            WHERE date >= ? AND date <= ?
+            GROUP BY hour
+            ORDER BY hour
+        """, (date_from, date_to))
 
     hourly_basic = {row[0]: {"messages": row[1] or 0, "tokens": row[2] or 0}
                     for row in cursor.fetchall()}
 
     # Get input/output breakdown from message_entries
-    cursor.execute("""
-        SELECT
-            CAST(SUBSTR(timestamp_local, 12, 2) AS INTEGER) as hour,
-            SUM(input_tokens) as input_tokens,
-            SUM(output_tokens) as output_tokens
-        FROM message_entries
-        WHERE date >= ? AND date <= ?
-        GROUP BY hour
-    """, (date_from, date_to))
+    if project_id:
+        cursor.execute("""
+            SELECT
+                CAST(SUBSTR(timestamp_local, 12, 2) AS INTEGER) as hour,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND project_id = ?
+            GROUP BY hour
+        """, (date_from, date_to, project_id))
+    else:
+        cursor.execute("""
+            SELECT
+                CAST(SUBSTR(timestamp_local, 12, 2) AS INTEGER) as hour,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens
+            FROM message_entries
+            WHERE date >= ? AND date <= ?
+            GROUP BY hour
+        """, (date_from, date_to))
 
     hourly_breakdown = {row[0]: {"input_tokens": row[1] or 0, "output_tokens": row[2] or 0}
                         for row in cursor.fetchall()}
@@ -477,7 +562,8 @@ def query_recent_sessions(
     conn: sqlite3.Connection,
     date_from: str,
     date_to: str,
-    limit: int = 20
+    limit: int = 20,
+    project_id: Optional[str] = None
 ) -> list[dict]:
     """
     Query recent sessions with aggregated stats.
@@ -487,28 +573,49 @@ def query_recent_sessions(
         date_from: Start date (YYYY-MM-DD)
         date_to: End date (YYYY-MM-DD)
         limit: Maximum number of sessions to return
+        project_id: Optional project filter
 
     Returns:
         List of session dicts, sorted by last_time descending
     """
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT
-            session_id,
-            model,
-            COUNT(*) as messages,
-            SUM(total_tokens) as tokens,
-            SUM(input_tokens) as input_tokens,
-            SUM(output_tokens) as output_tokens,
-            SUM(COALESCE(cost_usd, 0)) as cost,
-            MIN(timestamp_local) as first_time,
-            MAX(timestamp_local) as last_time
-        FROM message_entries
-        WHERE date >= ? AND date <= ? AND session_id IS NOT NULL
-        GROUP BY session_id
-        ORDER BY last_time DESC
-        LIMIT ?
-    """, (date_from, date_to, limit))
+
+    if project_id:
+        cursor.execute("""
+            SELECT
+                session_id,
+                model,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost,
+                MIN(timestamp_local) as first_time,
+                MAX(timestamp_local) as last_time
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND project_id = ? AND session_id IS NOT NULL
+            GROUP BY session_id
+            ORDER BY last_time DESC
+            LIMIT ?
+        """, (date_from, date_to, project_id, limit))
+    else:
+        cursor.execute("""
+            SELECT
+                session_id,
+                model,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost,
+                MIN(timestamp_local) as first_time,
+                MAX(timestamp_local) as last_time
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND session_id IS NOT NULL
+            GROUP BY session_id
+            ORDER BY last_time DESC
+            LIMIT ?
+        """, (date_from, date_to, limit))
 
     return [
         {
@@ -530,7 +637,8 @@ def query_recent_sessions(
 def query_totals(
     conn: sqlite3.Connection,
     date_from: str,
-    date_to: str
+    date_to: str,
+    project_id: Optional[str] = None
 ) -> dict:
     """
     Query total statistics for a date range.
@@ -539,26 +647,43 @@ def query_totals(
         conn: Database connection
         date_from: Start date (YYYY-MM-DD)
         date_to: End date (YYYY-MM-DD)
+        project_id: Optional project filter
 
     Returns:
         Dict with all totals including token breakdowns
     """
     cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT
-            COUNT(*) as total_messages,
-            COUNT(DISTINCT session_id) as total_sessions,
-            SUM(total_tokens) as total_tokens,
-            SUM(input_tokens) as input_tokens,
-            SUM(output_tokens) as output_tokens,
-            SUM(COALESCE(cost_usd, 0)) as total_cost,
-            SUM(cache_read_tokens) as cache_read,
-            SUM(cache_write_tokens) as cache_write,
-            MIN(timestamp_local) as first_timestamp
-        FROM message_entries
-        WHERE date >= ? AND date <= ?
-    """, (date_from, date_to))
+    if project_id:
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_messages,
+                COUNT(DISTINCT session_id) as total_sessions,
+                SUM(total_tokens) as total_tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as total_cost,
+                SUM(cache_read_tokens) as cache_read,
+                SUM(cache_write_tokens) as cache_write,
+                MIN(timestamp_local) as first_timestamp
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND project_id = ?
+        """, (date_from, date_to, project_id))
+    else:
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_messages,
+                COUNT(DISTINCT session_id) as total_sessions,
+                SUM(total_tokens) as total_tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as total_cost,
+                SUM(cache_read_tokens) as cache_read,
+                SUM(cache_write_tokens) as cache_write,
+                MIN(timestamp_local) as first_timestamp
+            FROM message_entries
+            WHERE date >= ? AND date <= ?
+        """, (date_from, date_to))
     row = cursor.fetchone()
 
     # Parse first timestamp
@@ -579,13 +704,14 @@ def query_totals(
     }
 
 
-def query_day_details(conn: sqlite3.Connection, date: str) -> dict:
+def query_day_details(conn: sqlite3.Connection, date: str, project_id: Optional[str] = None) -> dict:
     """
     Get detailed stats for a specific day.
 
     Args:
         conn: Database connection
         date: Date (YYYY-MM-DD)
+        project_id: Optional project filter
 
     Returns:
         Dict with hourly breakdown, models, and sessions for the day
@@ -593,31 +719,59 @@ def query_day_details(conn: sqlite3.Connection, date: str) -> dict:
     cursor = conn.cursor()
 
     # Hourly breakdown for this day
-    cursor.execute("""
-        SELECT hour, message_count, total_tokens, total_cost_usd
-        FROM hourly_aggregates
-        WHERE date = ?
-        ORDER BY hour
-    """, (date,))
+    if project_id:
+        cursor.execute("""
+            SELECT
+                CAST(SUBSTR(timestamp_local, 12, 2) AS INTEGER) as hour,
+                COUNT(*) as message_count,
+                SUM(total_tokens) as total_tokens,
+                SUM(COALESCE(cost_usd, 0)) as total_cost_usd
+            FROM message_entries
+            WHERE date = ? AND project_id = ?
+            GROUP BY hour
+            ORDER BY hour
+        """, (date, project_id))
+    else:
+        cursor.execute("""
+            SELECT hour, message_count, total_tokens, total_cost_usd
+            FROM hourly_aggregates
+            WHERE date = ?
+            ORDER BY hour
+        """, (date,))
     hourly = [
         {"hour": r[0], "messages": r[1] or 0, "tokens": r[2] or 0, "cost": round(r[3] or 0, 4)}
         for r in cursor.fetchall()
     ]
 
     # Model breakdown for this day
-    cursor.execute("""
-        SELECT
-            model,
-            COUNT(*) as messages,
-            SUM(total_tokens) as tokens,
-            SUM(input_tokens) as input_tokens,
-            SUM(output_tokens) as output_tokens,
-            SUM(COALESCE(cost_usd, 0)) as cost
-        FROM message_entries
-        WHERE date = ? AND model IS NOT NULL
-        GROUP BY model
-        ORDER BY tokens DESC
-    """, (date,))
+    if project_id:
+        cursor.execute("""
+            SELECT
+                model,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost
+            FROM message_entries
+            WHERE date = ? AND project_id = ? AND model IS NOT NULL
+            GROUP BY model
+            ORDER BY tokens DESC
+        """, (date, project_id))
+    else:
+        cursor.execute("""
+            SELECT
+                model,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost
+            FROM message_entries
+            WHERE date = ? AND model IS NOT NULL
+            GROUP BY model
+            ORDER BY tokens DESC
+        """, (date,))
     models = [
         {
             "model": r[0],
@@ -632,21 +786,38 @@ def query_day_details(conn: sqlite3.Connection, date: str) -> dict:
     ]
 
     # Sessions for this day
-    cursor.execute("""
-        SELECT
-            session_id, model,
-            COUNT(*) as messages,
-            SUM(total_tokens) as tokens,
-            SUM(input_tokens) as input_tokens,
-            SUM(output_tokens) as output_tokens,
-            SUM(COALESCE(cost_usd, 0)) as cost,
-            MIN(timestamp_local) as first_time,
-            MAX(timestamp_local) as last_time
-        FROM message_entries
-        WHERE date = ? AND session_id IS NOT NULL
-        GROUP BY session_id
-        ORDER BY first_time
-    """, (date,))
+    if project_id:
+        cursor.execute("""
+            SELECT
+                session_id, model,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost,
+                MIN(timestamp_local) as first_time,
+                MAX(timestamp_local) as last_time
+            FROM message_entries
+            WHERE date = ? AND project_id = ? AND session_id IS NOT NULL
+            GROUP BY session_id
+            ORDER BY first_time
+        """, (date, project_id))
+    else:
+        cursor.execute("""
+            SELECT
+                session_id, model,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost,
+                MIN(timestamp_local) as first_time,
+                MAX(timestamp_local) as last_time
+            FROM message_entries
+            WHERE date = ? AND session_id IS NOT NULL
+            GROUP BY session_id
+            ORDER BY first_time
+        """, (date,))
     sessions = [
         {
             "session_id": r[0],
@@ -664,17 +835,30 @@ def query_day_details(conn: sqlite3.Connection, date: str) -> dict:
     ]
 
     # Day totals
-    cursor.execute("""
-        SELECT
-            COUNT(*) as messages,
-            COUNT(DISTINCT session_id) as sessions,
-            SUM(total_tokens) as tokens,
-            SUM(input_tokens) as input_tokens,
-            SUM(output_tokens) as output_tokens,
-            SUM(COALESCE(cost_usd, 0)) as cost
-        FROM message_entries
-        WHERE date = ?
-    """, (date,))
+    if project_id:
+        cursor.execute("""
+            SELECT
+                COUNT(*) as messages,
+                COUNT(DISTINCT session_id) as sessions,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost
+            FROM message_entries
+            WHERE date = ? AND project_id = ?
+        """, (date, project_id))
+    else:
+        cursor.execute("""
+            SELECT
+                COUNT(*) as messages,
+                COUNT(DISTINCT session_id) as sessions,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost
+            FROM message_entries
+            WHERE date = ?
+        """, (date,))
     totals_row = cursor.fetchone()
 
     return {
@@ -697,7 +881,8 @@ def query_model_details(
     conn: sqlite3.Connection,
     model: str,
     date_from: str,
-    date_to: str
+    date_to: str,
+    project_id: Optional[str] = None
 ) -> dict:
     """
     Get detailed stats for a specific model.
@@ -707,6 +892,7 @@ def query_model_details(
         model: Model identifier
         date_from: Start date (YYYY-MM-DD)
         date_to: End date (YYYY-MM-DD)
+        project_id: Optional project filter
 
     Returns:
         Dict with model totals, daily activity, and top sessions
@@ -714,49 +900,89 @@ def query_model_details(
     cursor = conn.cursor()
 
     # Daily activity for this model
-    cursor.execute("""
-        SELECT date, COUNT(*) as messages, SUM(total_tokens) as tokens
-        FROM message_entries
-        WHERE model = ? AND date >= ? AND date <= ?
-        GROUP BY date
-        ORDER BY date
-    """, (model, date_from, date_to))
+    if project_id:
+        cursor.execute("""
+            SELECT date, COUNT(*) as messages, SUM(total_tokens) as tokens
+            FROM message_entries
+            WHERE model = ? AND date >= ? AND date <= ? AND project_id = ?
+            GROUP BY date
+            ORDER BY date
+        """, (model, date_from, date_to, project_id))
+    else:
+        cursor.execute("""
+            SELECT date, COUNT(*) as messages, SUM(total_tokens) as tokens
+            FROM message_entries
+            WHERE model = ? AND date >= ? AND date <= ?
+            GROUP BY date
+            ORDER BY date
+        """, (model, date_from, date_to))
     daily_activity = {
         r[0]: {"messages": r[1] or 0, "tokens": r[2] or 0}
         for r in cursor.fetchall()
     }
 
     # Totals for this model
-    cursor.execute("""
-        SELECT
-            COUNT(*) as messages,
-            COUNT(DISTINCT session_id) as sessions,
-            SUM(total_tokens) as tokens,
-            SUM(input_tokens) as input_tokens,
-            SUM(output_tokens) as output_tokens,
-            SUM(cache_read_tokens) as cache_read,
-            SUM(cache_write_tokens) as cache_write,
-            SUM(COALESCE(cost_usd, 0)) as cost
-        FROM message_entries
-        WHERE model = ? AND date >= ? AND date <= ?
-    """, (model, date_from, date_to))
+    if project_id:
+        cursor.execute("""
+            SELECT
+                COUNT(*) as messages,
+                COUNT(DISTINCT session_id) as sessions,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(cache_read_tokens) as cache_read,
+                SUM(cache_write_tokens) as cache_write,
+                SUM(COALESCE(cost_usd, 0)) as cost
+            FROM message_entries
+            WHERE model = ? AND date >= ? AND date <= ? AND project_id = ?
+        """, (model, date_from, date_to, project_id))
+    else:
+        cursor.execute("""
+            SELECT
+                COUNT(*) as messages,
+                COUNT(DISTINCT session_id) as sessions,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(cache_read_tokens) as cache_read,
+                SUM(cache_write_tokens) as cache_write,
+                SUM(COALESCE(cost_usd, 0)) as cost
+            FROM message_entries
+            WHERE model = ? AND date >= ? AND date <= ?
+        """, (model, date_from, date_to))
     row = cursor.fetchone()
 
     # Top sessions for this model
-    cursor.execute("""
-        SELECT
-            session_id,
-            COUNT(*) as messages,
-            SUM(total_tokens) as tokens,
-            SUM(COALESCE(cost_usd, 0)) as cost,
-            MIN(timestamp_local) as first_time,
-            MAX(timestamp_local) as last_time
-        FROM message_entries
-        WHERE model = ? AND date >= ? AND date <= ? AND session_id IS NOT NULL
-        GROUP BY session_id
-        ORDER BY tokens DESC
-        LIMIT 10
-    """, (model, date_from, date_to))
+    if project_id:
+        cursor.execute("""
+            SELECT
+                session_id,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost,
+                MIN(timestamp_local) as first_time,
+                MAX(timestamp_local) as last_time
+            FROM message_entries
+            WHERE model = ? AND date >= ? AND date <= ? AND project_id = ? AND session_id IS NOT NULL
+            GROUP BY session_id
+            ORDER BY tokens DESC
+            LIMIT 10
+        """, (model, date_from, date_to, project_id))
+    else:
+        cursor.execute("""
+            SELECT
+                session_id,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost,
+                MIN(timestamp_local) as first_time,
+                MAX(timestamp_local) as last_time
+            FROM message_entries
+            WHERE model = ? AND date >= ? AND date <= ? AND session_id IS NOT NULL
+            GROUP BY session_id
+            ORDER BY tokens DESC
+            LIMIT 10
+        """, (model, date_from, date_to))
     sessions = [
         {
             "session_id": r[0],
@@ -788,13 +1014,14 @@ def query_model_details(
     }
 
 
-def query_session_details(conn: sqlite3.Connection, session_id: str) -> dict:
+def query_session_details(conn: sqlite3.Connection, session_id: str, project_id: Optional[str] = None) -> dict:
     """
     Get detailed stats for a specific session.
 
     Args:
         conn: Database connection
         session_id: Session identifier
+        project_id: Optional project filter (not typically used for sessions, but for consistency)
 
     Returns:
         Dict with session totals, messages, and metadata
@@ -802,14 +1029,24 @@ def query_session_details(conn: sqlite3.Connection, session_id: str) -> dict:
     cursor = conn.cursor()
 
     # Session messages
-    cursor.execute("""
-        SELECT
-            timestamp_local, model, input_tokens, output_tokens,
-            cache_read_tokens, cache_write_tokens, cost_usd
-        FROM message_entries
-        WHERE session_id = ?
-        ORDER BY timestamp_local
-    """, (session_id,))
+    if project_id:
+        cursor.execute("""
+            SELECT
+                timestamp_local, model, input_tokens, output_tokens,
+                cache_read_tokens, cache_write_tokens, cost_usd
+            FROM message_entries
+            WHERE session_id = ? AND project_id = ?
+            ORDER BY timestamp_local
+        """, (session_id, project_id))
+    else:
+        cursor.execute("""
+            SELECT
+                timestamp_local, model, input_tokens, output_tokens,
+                cache_read_tokens, cache_write_tokens, cost_usd
+            FROM message_entries
+            WHERE session_id = ?
+            ORDER BY timestamp_local
+        """, (session_id,))
     messages = [
         {
             "timestamp": r[0],
@@ -825,32 +1062,59 @@ def query_session_details(conn: sqlite3.Connection, session_id: str) -> dict:
     ]
 
     # Session totals
-    cursor.execute("""
-        SELECT
-            COUNT(*) as messages,
-            SUM(total_tokens) as tokens,
-            SUM(input_tokens) as input_tokens,
-            SUM(output_tokens) as output_tokens,
-            SUM(cache_read_tokens) as cache_read,
-            SUM(cache_write_tokens) as cache_write,
-            SUM(COALESCE(cost_usd, 0)) as cost,
-            MIN(timestamp_local) as first_time,
-            MAX(timestamp_local) as last_time,
-            MIN(date) as date
-        FROM message_entries
-        WHERE session_id = ?
-    """, (session_id,))
+    if project_id:
+        cursor.execute("""
+            SELECT
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(cache_read_tokens) as cache_read,
+                SUM(cache_write_tokens) as cache_write,
+                SUM(COALESCE(cost_usd, 0)) as cost,
+                MIN(timestamp_local) as first_time,
+                MAX(timestamp_local) as last_time,
+                MIN(date) as date
+            FROM message_entries
+            WHERE session_id = ? AND project_id = ?
+        """, (session_id, project_id))
+    else:
+        cursor.execute("""
+            SELECT
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(cache_read_tokens) as cache_read,
+                SUM(cache_write_tokens) as cache_write,
+                SUM(COALESCE(cost_usd, 0)) as cost,
+                MIN(timestamp_local) as first_time,
+                MAX(timestamp_local) as last_time,
+                MIN(date) as date
+            FROM message_entries
+            WHERE session_id = ?
+        """, (session_id,))
     row = cursor.fetchone()
 
     # Determine primary model (most used)
-    cursor.execute("""
-        SELECT model, COUNT(*) as cnt
-        FROM message_entries
-        WHERE session_id = ? AND model IS NOT NULL
-        GROUP BY model
-        ORDER BY cnt DESC
-        LIMIT 1
-    """, (session_id,))
+    if project_id:
+        cursor.execute("""
+            SELECT model, COUNT(*) as cnt
+            FROM message_entries
+            WHERE session_id = ? AND project_id = ? AND model IS NOT NULL
+            GROUP BY model
+            ORDER BY cnt DESC
+            LIMIT 1
+        """, (session_id, project_id))
+    else:
+        cursor.execute("""
+            SELECT model, COUNT(*) as cnt
+            FROM message_entries
+            WHERE session_id = ? AND model IS NOT NULL
+            GROUP BY model
+            ORDER BY cnt DESC
+            LIMIT 1
+        """, (session_id,))
     model_row = cursor.fetchone()
     primary_model = model_row[0] if model_row else None
 
