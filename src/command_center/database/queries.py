@@ -598,7 +598,7 @@ def query_recent_sessions(
     project_id: Optional[str] = None
 ) -> list[dict]:
     """
-    Query recent sessions with aggregated stats.
+    Query top sessions with aggregated stats.
 
     Args:
         conn: Database connection
@@ -608,7 +608,7 @@ def query_recent_sessions(
         project_id: Optional project filter
 
     Returns:
-        List of session dicts, sorted by last_time descending
+        List of session dicts, sorted by cost descending
     """
     cursor = conn.cursor()
 
@@ -627,7 +627,7 @@ def query_recent_sessions(
             FROM message_entries
             WHERE date >= ? AND date <= ? AND project_id = ? AND session_id IS NOT NULL
             GROUP BY session_id
-            ORDER BY last_time DESC
+            ORDER BY cost DESC, tokens DESC, last_time DESC
             LIMIT ?
         """, (date_from, date_to, project_id, limit))
     else:
@@ -645,7 +645,7 @@ def query_recent_sessions(
             FROM message_entries
             WHERE date >= ? AND date <= ? AND session_id IS NOT NULL
             GROUP BY session_id
-            ORDER BY last_time DESC
+            ORDER BY cost DESC, tokens DESC, last_time DESC
             LIMIT ?
         """, (date_from, date_to, limit))
 

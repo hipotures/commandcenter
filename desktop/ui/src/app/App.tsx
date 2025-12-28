@@ -446,6 +446,32 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
 
   const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthLabelSlots = useMemo(() => {
+    const labels: string[] = [];
+    let lastMonth: number | null = null;
+    let lastLabelIndex = -1000;
+    const cellWidth = 14 + 3.3;
+    const minPixelGap = 28;
+    const minWeekGap = Math.ceil(minPixelGap / cellWidth);
+
+    weeks.forEach((week, idx) => {
+      if (week.length === 0) {
+        labels[idx] = '';
+        return;
+      }
+      const month = new Date(week[0].date).getMonth();
+      const isMonthChange = lastMonth === null || month !== lastMonth;
+      if (isMonthChange && idx - lastLabelIndex >= minWeekGap) {
+        labels[idx] = monthLabels[month];
+        lastLabelIndex = idx;
+      } else {
+        labels[idx] = '';
+      }
+      lastMonth = month;
+    });
+
+    return labels;
+  }, [weeks]);
 
   return (
     <div style={{
@@ -470,27 +496,17 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
       
       {/* Month labels */}
       <div style={{ display: 'flex', marginLeft: '36px', marginBottom: '8px', gap: '3.3px' }}>
-        {weeks.map((week, idx) => {
-          if (week.length === 0) return null;
-
-          // Show month label only when month changes
-          const currentMonth = new Date(week[0].date).getMonth();
-          const prevMonth = idx > 0 && weeks[idx - 1].length > 0
-            ? new Date(weeks[idx - 1][0].date).getMonth()
-            : -1;
-
-          return (
-            <div key={idx} style={{
-              width: '14px',
-              fontSize: '11px',
-              color: tokens.colors.textMuted,
-              fontWeight: '500',
-              textAlign: 'left',
-            }}>
-              {currentMonth !== prevMonth ? monthLabels[currentMonth] : ''}
-            </div>
-          );
-        })}
+        {weeks.map((week, idx) => (
+          <div key={idx} style={{
+            width: '14px',
+            fontSize: '11px',
+            color: tokens.colors.textMuted,
+            fontWeight: '500',
+            textAlign: 'left',
+          }}>
+            {week.length === 0 ? '' : monthLabelSlots[idx] || ''}
+          </div>
+        ))}
       </div>
 
       <div style={{ display: 'flex', gap: '4px' }}>
@@ -1411,9 +1427,7 @@ const CacheEfficiency = ({ cacheRead, cacheWrite }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const SessionsTable = ({ sessions, isExporting = false }: any) => {
   const [sessionLimit, setSessionLimit] = useState('10');
-  const visibleSessions = sessionLimit === 'all'
-    ? sessions
-    : sessions.slice(0, Number(sessionLimit));
+  const visibleSessions = sessions.slice(0, Number(sessionLimit));
 
   return (
     <div style={{
@@ -1440,7 +1454,7 @@ const SessionsTable = ({ sessions, isExporting = false }: any) => {
           flexShrink: 0,
         }}>
           <MessageSquare size={20} style={{ color: tokens.colors.accentPrimary }} />
-          Recent Sessions
+          Top Sessions by Cost
         </div>
         <div
           data-export-exclude={isExporting ? 'true' : undefined}
@@ -1466,7 +1480,7 @@ const SessionsTable = ({ sessions, isExporting = false }: any) => {
           >
             <option value="10">Show 10</option>
             <option value="25">Show 25</option>
-            <option value="all">View All</option>
+            <option value="50">Show 50</option>
           </select>
           <ChevronDown
             size={14}

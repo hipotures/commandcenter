@@ -132,7 +132,7 @@ def get_dashboard_bundle(
         timeline_data = query_timeline_data(conn, date_from, date_to, granularity, project_id)
         model_distribution = query_model_distribution(conn, date_from, date_to, project_id)
         hourly_profile = query_hourly_profile(conn, date_from, date_to, project_id)
-        recent_sessions = query_recent_sessions(conn, date_from, date_to, limit=20, project_id=project_id)
+        recent_sessions = query_recent_sessions(conn, date_from, date_to, limit=50, project_id=project_id)
 
         # Calculate streaks
         max_streak, current_streak = calculate_streaks(daily_activity)
