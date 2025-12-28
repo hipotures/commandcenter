@@ -88,6 +88,10 @@ export interface DashboardBundle {
   meta?: {
     updated_files: number;
     generated_at: string;
+    data_range?: {
+      start: string | null;
+      end: string | null;
+    };
   };
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -12,7 +12,7 @@ import {
   Calendar, TrendingUp, Clock, Cpu, ChevronDown, Download,
   RefreshCw, Settings, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
-import { useDashboard, useLimitResets, useProjects } from './state/queries';
+import { useDashboard, useLimitResets } from './state/queries';
 import { SettingsDrawer } from './components/drawers/SettingsDrawer';
 import { ProjectSelector } from './components/ProjectSelector';
 import { useAppStore } from './state/store';
@@ -68,12 +68,203 @@ const formatCurrency = (num: number): string => {
   return '$' + num.toFixed(2);
 };
 
-const getTickInterval = (dataLength: number, targetTicks = 12): number => {
-  if (dataLength <= targetTicks) {
-    return 0;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+const chooseTickStep = (rangeMs: number): number => {
+  if (rangeMs <= 0) {
+    return DAY_MS;
+  }
+  if (rangeMs <= 2 * DAY_MS) {
+    return 4 * HOUR_MS;
+  }
+  if (rangeMs <= 14 * DAY_MS) {
+    return DAY_MS;
+  }
+  if (rangeMs <= 90 * DAY_MS) {
+    return 7 * DAY_MS;
+  }
+  return 30 * DAY_MS;
+};
+
+const buildTicks = (min: number, max: number, step: number): number[] => {
+  if (step <= 0 || min === max) {
+    return [min];
   }
 
-  return Math.max(1, Math.ceil(dataLength / targetTicks) - 1);
+  const first = Math.ceil(min / step) * step;
+  const ticks: number[] = [];
+  for (let t = first; t <= max; t += step) {
+    ticks.push(t);
+  }
+
+  if (ticks.length === 0) {
+    return [min, max].filter((value, index, arr) => arr.indexOf(value) === index);
+  }
+
+  return ticks;
+};
+
+const startOfDay = (ts: number): number => {
+  const date = new Date(ts);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+};
+
+const parseWeekStart = (year: number, week: number): number => {
+  const jan1 = new Date(year, 0, 1);
+  const jan1Day = jan1.getDay();
+  const firstMondayOffset = (8 - jan1Day) % 7;
+  const firstMonday = new Date(year, 0, 1 + firstMondayOffset);
+
+  if (week <= 0) {
+    return jan1.getTime();
+  }
+
+  const target = new Date(firstMonday);
+  target.setDate(firstMonday.getDate() + (week - 1) * 7);
+  return target.getTime();
+};
+
+const parsePeriodToTimestamp = (
+  period: string,
+  granularity: 'hour' | 'day' | 'week' | 'month'
+): number | null => {
+  if (!period) {
+    return null;
+  }
+
+  if (granularity === 'hour') {
+    const [datePart, hourPart] = period.split(' ');
+    if (!datePart || hourPart === undefined) {
+      return null;
+    }
+    return new Date(`${datePart}T${hourPart.padStart(2, '0')}:00:00`).getTime();
+  }
+
+  if (granularity === 'day') {
+    return new Date(`${period}T00:00:00`).getTime();
+  }
+
+  if (granularity === 'week') {
+    const [yearStr, weekStr] = period.split('-W');
+    const year = Number(yearStr);
+    const week = Number(weekStr);
+    if (Number.isNaN(year) || Number.isNaN(week)) {
+      return null;
+    }
+    return parseWeekStart(year, week);
+  }
+
+  const [yearStr, monthStr] = period.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  if (Number.isNaN(year) || Number.isNaN(month)) {
+    return null;
+  }
+  return new Date(year, month - 1, 1).getTime();
+};
+
+const startOfWeek = (date: Date): Date => {
+  const result = new Date(date);
+  const day = result.getDay();
+  const diff = (day + 6) % 7;
+  result.setDate(result.getDate() - diff);
+  result.setHours(0, 0, 0, 0);
+  return result;
+};
+
+const toGranularityTimestamp = (
+  date: Date,
+  granularity: 'hour' | 'day' | 'week' | 'month'
+): number => {
+  const result = new Date(date);
+
+  if (granularity === 'hour') {
+    result.setMinutes(0, 0, 0);
+    return result.getTime();
+  }
+  if (granularity === 'day') {
+    result.setHours(0, 0, 0, 0);
+    return result.getTime();
+  }
+  if (granularity === 'week') {
+    return startOfWeek(result).getTime();
+  }
+
+  result.setDate(1);
+  result.setHours(0, 0, 0, 0);
+  return result.getTime();
+};
+
+const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' });
+const dayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
+const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+type TimeTickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value: number };
+  showDateFor?: Set<number>;
+  granularity: 'hour' | 'day' | 'week' | 'month';
+  tickCount?: number;
+  index?: number;
+};
+
+const TimeTick = ({
+  x = 0,
+  y = 0,
+  payload,
+  showDateFor,
+  granularity,
+  tickCount,
+  index,
+}: TimeTickProps) => {
+  const value = payload?.value;
+  if (typeof value !== 'number') {
+    return null;
+  }
+
+  const date = new Date(value);
+  let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+  if (typeof index === 'number' && typeof tickCount === 'number' && tickCount > 1) {
+    if (index === 0) {
+      textAnchor = 'start';
+    } else if (index === tickCount - 1) {
+      textAnchor = 'end';
+    }
+  }
+
+  if (granularity === 'hour') {
+    const dayKey = startOfDay(value);
+    const showDate = showDateFor?.has(dayKey);
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text textAnchor={textAnchor} dy={12} fontSize={11} fill={tokens.colors.textMuted}>
+          <tspan x={0}>{timeFormatter.format(date)}</tspan>
+          {showDate && <tspan x={0} dy={14}>{dayFormatter.format(date)}</tspan>}
+        </text>
+      </g>
+    );
+  }
+
+  const label = granularity === 'month'
+    ? monthFormatter.format(date)
+    : dayFormatter.format(date);
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text textAnchor={textAnchor} dy={12} fontSize={11} fill={tokens.colors.textMuted}>
+        {label}
+      </text>
+    </g>
+  );
 };
 
 const EmptyChartState = ({ message }: { message: string }) => (
@@ -547,11 +738,71 @@ const ModelDistribution = ({ data }: any) => {
 const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
   const [metric, setMetric] = useState('messages');
   const [selectedLimitTypes, setSelectedLimitTypes] = useState<Set<string>>(new Set());
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [chartWidth, setChartWidth] = useState(0);
   const safeData = Array.isArray(data) ? data : [];
-  const hasData = safeData.length > 0;
-  const isHourly = granularity === 'hour';
-  const xAxisInterval = getTickInterval(safeData.length, isHourly ? 6 : 12);
-  const chartMargin = { top: 10, right: 30, left: 0, bottom: isHourly ? 24 : 0 };
+  const chartData = useMemo(() => {
+    return safeData
+      .map((item: any) => {
+        const ts = parsePeriodToTimestamp(item.period, granularity);
+        if (ts === null) {
+          return null;
+        }
+        return { ...item, ts };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => a.ts - b.ts);
+  }, [safeData, granularity]);
+  const hasData = chartData.length > 0;
+  const chartMargin = { top: 10, right: 30, left: 0, bottom: granularity === 'hour' ? 28 : 8 };
+
+  useEffect(() => {
+    if (!chartContainerRef.current) {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setChartWidth(entry.contentRect.width);
+      }
+    });
+
+    observer.observe(chartContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const { ticks, showDateFor, minTs, maxTs } = useMemo(() => {
+    if (!chartData.length) {
+      return { ticks: [], showDateFor: new Set<number>(), minTs: 0, maxTs: 0 };
+    }
+
+    const min = chartData[0].ts;
+    const max = chartData[chartData.length - 1].ts;
+    const step = chooseTickStep(max - min);
+    const baseTicks = buildTicks(min, max, step);
+    const targetLabelWidth = granularity === 'hour' ? 96 : 72;
+    const maxTicks = chartWidth > 0 ? Math.max(2, Math.floor(chartWidth / targetLabelWidth)) : baseTicks.length;
+    const stride = baseTicks.length > maxTicks ? Math.ceil(baseTicks.length / maxTicks) : 1;
+    const ticks = baseTicks.filter((_, idx) => idx % stride === 0);
+    if (ticks[0] !== baseTicks[0]) {
+      ticks.unshift(baseTicks[0]);
+    }
+    if (ticks[ticks.length - 1] !== baseTicks[baseTicks.length - 1]) {
+      ticks.push(baseTicks[baseTicks.length - 1]);
+    }
+
+    const showDateFor = new Set<number>();
+    let lastDay: number | null = null;
+    for (const tick of ticks) {
+      const dayKey = startOfDay(tick);
+      if (dayKey !== lastDay) {
+        showDateFor.add(dayKey);
+        lastDay = dayKey;
+      }
+    }
+
+    return { ticks, showDateFor, minTs: min, maxTs: max };
+  }, [chartData, chartWidth, granularity]);
 
   const metrics = [
     { key: 'messages', label: 'Messages', color: tokens.colors.accentPrimary },
@@ -584,31 +835,18 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
     }
   }, [hasData, selectedLimitTypes.size]);
 
-  // Format period label based on granularity
-  const formatPeriodLabel = (period: string) => {
-    if (granularity === 'hour') {
-      // 2025-01-15 14 -> Jan 15 14:00
-      const parts = period.split(' ');
-      if (parts.length === 2) {
-        const [datePart, hourPart] = parts;
-        const date = new Date(`${datePart}T${hourPart.padStart(2, '0')}:00:00`);
-        const dayLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return `${dayLabel} ${hourPart.padStart(2, '0')}:00`;
-      }
-      return period;
-    } else if (granularity === 'day') {
-      // 2025-01-15 -> Jan 15
-      const date = new Date(period);
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    } else if (granularity === 'week') {
-      // 2025-W03 -> W03
-      return period.replace(/^\d{4}-/, '');
-    } else {
-      // 2025-01 -> Jan 2025
-      const [year, month] = period.split('-');
-      const date = new Date(parseInt(year), parseInt(month) - 1);
-      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+  const formatTooltipLabel = (value: number) => {
+    if (!Number.isFinite(value)) {
+      return '';
     }
+    const date = new Date(value);
+    if (granularity === 'month') {
+      return monthFormatter.format(date);
+    }
+    if (granularity === 'week' || granularity === 'day') {
+      return dayFormatter.format(date);
+    }
+    return dateTimeFormatter.format(date);
   };
 
   return (
@@ -663,10 +901,10 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
 
       <div style={{ display: 'flex', gap: '20px' }}>
         {/* Chart */}
-        <div style={{ flex: 1, height: '280px', minWidth: 0 }}>
+        <div ref={chartContainerRef} style={{ flex: 1, height: '280px', minWidth: 0 }}>
         {hasData ? (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={safeData} margin={chartMargin}>
+            <AreaChart data={chartData} margin={chartMargin}>
               <defs>
                 <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={tokens.colors.accentPrimary} stopOpacity={0.3}/>
@@ -675,20 +913,24 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={tokens.colors.surfaceBorder} />
               <XAxis
-                dataKey="period"
+                dataKey="ts"
+                type="number"
+                scale="time"
+                domain={[minTs, maxTs]}
+                ticks={ticks}
                 axisLine={false}
                 tickLine={false}
-                tick={{
-                  fill: tokens.colors.textMuted,
-                  fontSize: 11,
-                  textAnchor: isHourly ? 'end' : 'middle',
-                }}
-                tickFormatter={formatPeriodLabel}
-                angle={isHourly ? -45 : 0}
-                height={isHourly ? 72 : 40}
-                interval={xAxisInterval}
-                minTickGap={isHourly ? 32 : 16}
-                tickMargin={isHourly ? 8 : 4}
+                tick={(props) => (
+                  <TimeTick
+                    {...props}
+                    granularity={granularity}
+                    showDateFor={showDateFor}
+                    tickCount={ticks.length}
+                  />
+                )}
+                interval={0}
+                minTickGap={24}
+                height={granularity === 'hour' ? 52 : 36}
               />
               <YAxis
                 axisLine={false}
@@ -705,7 +947,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
                 }}
                 labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
                 itemStyle={{ color: tokens.colors.heatmap[2] }}
-                labelFormatter={formatPeriodLabel}
+                labelFormatter={(value: any) => formatTooltipLabel(Number(value))}
                 formatter={(val: any) => [metric === 'cost' ? formatCurrency(val) : formatNumber(val), metrics.find(m => m.key === metric)?.label]}
               />
               <Area
@@ -722,25 +964,9 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
               {limitResets.filter((reset: any) => selectedLimitTypes.has(reset.limit_type)).map((reset: any, idx: number) => {
                 // Parse reset timestamp to match granularity format
                 const resetDate = new Date(reset.reset_at);
-                let xValue = '';
-
-                if (granularity === 'hour') {
-                  // Format: "2025-01-15 14"
-                  const dateStr = resetDate.toISOString().slice(0, 10);
-                  const hour = resetDate.getHours();
-                  xValue = `${dateStr} ${hour}`;
-                } else if (granularity === 'day') {
-                  // Format: "2025-01-15"
-                  xValue = resetDate.toISOString().slice(0, 10);
-                } else if (granularity === 'week') {
-                  // Format: "2025-W03" (ISO week)
-                  const year = resetDate.getFullYear();
-                  const onejan = new Date(year, 0, 1);
-                  const week = Math.ceil((((resetDate.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
-                  xValue = `${year}-W${String(week).padStart(2, '0')}`;
-                } else {
-                  // month: Format: "2025-01"
-                  xValue = resetDate.toISOString().slice(0, 7);
+                const xValue = toGranularityTimestamp(resetDate, granularity);
+                if (Number.isNaN(xValue)) {
+                  return null;
                 }
 
                 const colors = {
@@ -1326,7 +1552,6 @@ function DashboardContent() {
 
   // Settings drawer state and project filter
   const { settingsOpen, toggleSettings, selectedProjectId } = useAppStore();
-  const { data: projectsData } = useProjects();
 
   // Debug log
   console.log('[DashboardContent] selectedProjectId:', selectedProjectId);
@@ -1338,7 +1563,7 @@ function DashboardContent() {
     const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 
     if (daysDiff <= 2) return 'hour';      // Up to 2 days -> hourly
-    if (daysDiff <= 14) return 'hour';     // Up to 14 days -> hourly
+    if (daysDiff <= 14) return 'day';      // 3-14 days -> daily
     if (daysDiff <= 60) return 'day';      // 15-60 days -> daily
     if (daysDiff <= 180) return 'week';    // 61-180 days -> weekly
     return 'month';                         // > 180 days -> monthly
@@ -1467,43 +1692,13 @@ function DashboardContent() {
     start.setDate(end.getDate() - 1);
     setRange(formatDate(start), formatDate(end));
   };
-  const getProjectRange = () => {
-    const projects = projectsData?.projects || [];
-
-    if (selectedProjectId) {
-      const project = projects.find(p => p.project_id === selectedProjectId);
-      return {
-        start: project?.first_seen ? normalizeDateString(project.first_seen) : null,
-        end: project?.last_seen ? normalizeDateString(project.last_seen) : null,
-      };
-    }
-
-    let earliest: string | null = null;
-    let latest: string | null = null;
-    for (const project of projects) {
-      if (!project.first_seen || !project.last_seen) {
-        continue;
-      }
-      const start = normalizeDateString(project.first_seen);
-      const end = normalizeDateString(project.last_seen);
-      if (!earliest || start < earliest) {
-        earliest = start;
-      }
-      if (!latest || end > latest) {
-        latest = end;
-      }
-    }
-
-    return { start: earliest, end: latest };
-  };
-
   const setRangeAll = () => {
-    const { start, end } = getProjectRange();
+    const dataRange = apiData.meta?.data_range;
     const fallbackStart = apiData.totals.first_session_date
       ? normalizeDateString(apiData.totals.first_session_date)
       : defaultFrom;
     const fallbackEnd = formatDate(new Date());
-    setRange(start || fallbackStart, end || fallbackEnd);
+    setRange(dataRange?.start || fallbackStart, dataRange?.end || fallbackEnd);
   };
 
   // Transform API data to component format

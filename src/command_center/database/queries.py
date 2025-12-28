@@ -558,6 +558,38 @@ def query_hourly_profile(
     return result
 
 
+def query_data_range(conn: sqlite3.Connection, project_id: Optional[str] = None) -> dict:
+    """
+    Query overall data range (min/max date) for all data or a specific project.
+
+    Args:
+        conn: Database connection
+        project_id: Optional project filter
+
+    Returns:
+        Dict with start/end date strings (YYYY-MM-DD), or None when empty.
+    """
+    cursor = conn.cursor()
+
+    if project_id:
+        cursor.execute("""
+            SELECT MIN(date), MAX(date)
+            FROM message_entries
+            WHERE project_id = ?
+        """, (project_id,))
+    else:
+        cursor.execute("""
+            SELECT MIN(date), MAX(date)
+            FROM message_entries
+        """)
+
+    row = cursor.fetchone()
+    return {
+        "start": row[0],
+        "end": row[1],
+    }
+
+
 def query_recent_sessions(
     conn: sqlite3.Connection,
     date_from: str,

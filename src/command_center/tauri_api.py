@@ -24,6 +24,7 @@ from command_center.database.queries import (
     query_model_distribution,
     query_hourly_profile,
     query_recent_sessions,
+    query_data_range,
     query_totals,
     query_day_details,
     query_model_details,
@@ -130,6 +131,8 @@ def get_dashboard_bundle(
             "cost": calculate_trend(totals["cost"], prev_totals["cost"]),
         }
 
+        data_range = query_data_range(conn, project_id)
+
         # Build response
         return {
             "range": {
@@ -160,7 +163,8 @@ def get_dashboard_bundle(
             "recent_sessions": recent_sessions,
             "meta": {
                 "updated_files": updated_files,
-                "generated_at": datetime.now().isoformat()
+                "generated_at": datetime.now().isoformat(),
+                "data_range": data_range
             }
         }
 
