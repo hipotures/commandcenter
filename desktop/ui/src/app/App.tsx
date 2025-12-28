@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -567,6 +567,12 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
     });
   };
 
+  useEffect(() => {
+    if (!hasData && selectedLimitTypes.size > 0) {
+      setSelectedLimitTypes(new Set());
+    }
+  }, [hasData, selectedLimitTypes.size]);
+
   // Format period label based on granularity
   const formatPeriodLabel = (period: string) => {
     if (granularity === 'hour') {
@@ -765,6 +771,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
             return (
               <label
                 key={limit.type}
+                title={!hasData ? 'No data in this range' : undefined}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -782,6 +789,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
                   checked={isSelected}
                   onChange={() => hasLimitData && toggleLimitType(limit.type)}
                   disabled={!hasLimitData}
+                  title={!hasData ? 'No data in this range' : undefined}
                   style={{
                     cursor: hasLimitData ? 'pointer' : 'not-allowed',
                     width: '14px',
