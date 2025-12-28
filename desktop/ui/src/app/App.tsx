@@ -17,6 +17,8 @@ import { SettingsDrawer } from './components/drawers/SettingsDrawer';
 import { ProjectSelector } from './components/ProjectSelector';
 import { useAppStore } from './state/store';
 
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLAUDE CODE DESIGN TOKENS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -81,6 +83,19 @@ const toDateMs = (value: string) => new Date(value).getTime();
 const truncateId = (value: string, max = 15): string => (
   value.length > max ? `${value.slice(0, max)}...` : value
 );
+
+const dataUrlToBytes = (dataUrl: string): Uint8Array => {
+  const base64 = dataUrl.split(',')[1];
+  if (!base64) {
+    throw new Error('Invalid PNG data.');
+  }
+  const byteCharacters = atob(base64);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  return new Uint8Array(byteNumbers);
+};
 
 const formatDurationRange = (start?: string | null, end?: string | null): string => {
   if (!start || !end) return '—';
@@ -1797,8 +1812,6 @@ function DashboardContent() {
   // Handle download PNG button click
   const handleDownloadPNG = async () => {
     try {
-      const { save } = await import('@tauri-apps/plugin-dialog');
-      const { writeFile } = await import('@tauri-apps/plugin-fs');
       const { toPng } = await import('html-to-image');
 
       if (!dashboardRef.current) {
@@ -1823,7 +1836,6 @@ function DashboardContent() {
         setIsExporting(false);
       }
 
-      const data = dataUrl.split(',')[1];
       const now = new Date();
       const pad = (value: number) => value.toString().padStart(2, '0');
       const timestamp = [
@@ -1833,32 +1845,43 @@ function DashboardContent() {
       ].join('') + `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
       const filename = `cc-dashboard-${timestamp}.png`;
 
-      // Show save dialog
-      const filePath = await save({
-        defaultPath: filename,
-        filters: [{
-          name: 'PNG Image',
-          extensions: ['png']
-        }]
-      });
+      if (isTauri) {
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const { writeFile } = await import('@tauri-apps/plugin-fs');
 
-      if (!filePath) {
-        // User cancelled
+        // Show save dialog
+        const filePath = await save({
+          defaultPath: filename,
+          filters: [{
+            name: 'PNG Image',
+            extensions: ['png']
+          }]
+        });
+
+        if (!filePath) {
+          // User cancelled
+          return;
+        }
+
+        const byteArray = dataUrlToBytes(dataUrl);
+
+        // Write file
+        await writeFile(filePath, byteArray);
+
+        alert(`PNG report saved to:\n${filePath}`);
         return;
       }
 
-      // Decode base64 to bytes
-      const byteCharacters = atob(data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-
-      // Write file
-      await writeFile(filePath, byteArray);
-
-      alert(`PNG report saved to:\n${filePath}`);
+      const byteArray = dataUrlToBytes(dataUrl);
+      const blob = new Blob([byteArray], { type: 'image/png' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Failed to download PNG:', err);
       alert('Failed to download PNG report. Check console for details.');
