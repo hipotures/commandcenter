@@ -1553,14 +1553,22 @@ function DashboardContent() {
   const defaultFrom = `${now.getFullYear()}-01-01`;
   const defaultTo = now.toISOString().slice(0, 10);
 
-  const [dateRange, setDateRange] = useState({ from: defaultFrom, to: defaultTo });
   const [tempFrom, setTempFrom] = useState(defaultFrom);
   const [tempTo, setTempTo] = useState(defaultTo);
   const [showPicker, setShowPicker] = useState(false);
   const [shouldRefresh, setShouldRefresh] = useState(false);
 
   // Settings drawer state and project filter
-  const { settingsOpen, toggleSettings, selectedProjectId, darkMode } = useAppStore();
+  const {
+    settingsOpen,
+    toggleSettings,
+    selectedProjectId,
+    darkMode,
+    dateFrom,
+    dateTo,
+    setDateRange,
+  } = useAppStore();
+  const dateRange = { from: dateFrom, to: dateTo };
 
   // Debug log
   console.log('[DashboardContent] selectedProjectId:', selectedProjectId);
@@ -1695,7 +1703,7 @@ function DashboardContent() {
   const formatDate = (date: Date) => date.toISOString().split('T')[0];
   const normalizeDateString = (value: string) => value.split('T')[0].split(' ')[0];
   const setRange = (from: string, to: string) => {
-    setDateRange({ from, to });
+    setDateRange(from, to);
     setShowPicker(false);
   };
   const setRangeLastDays = (days: number) => {
@@ -2147,8 +2155,7 @@ function DashboardContent() {
                     </button>
                     <button
                       onClick={() => {
-                        setDateRange({ from: tempFrom, to: tempTo });
-                        setShowPicker(false);
+                        setRange(tempFrom, tempTo);
                       }}
                       style={{
                         flex: 1,

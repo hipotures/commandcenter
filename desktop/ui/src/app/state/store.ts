@@ -2,6 +2,7 @@
  * Global application state using Zustand
  */
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Granularity } from '../types/api';
 
 type DrawerType = 'messages' | 'sessions' | 'tokens' | 'cost' | 'streak' | 'cache' | null;
@@ -69,54 +70,68 @@ const now = new Date();
 const defaultFrom = `${now.getFullYear()}-01-01`;
 const defaultTo = today();
 
-export const useAppStore = create<AppState>((set) => ({
-  // Theme
-  darkMode: false,
-  setDarkMode: (darkMode) => set({ darkMode }),
-  toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      // Theme
+      darkMode: false,
+      setDarkMode: (darkMode) => set({ darkMode }),
+      toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
 
-  // Date range
-  dateFrom: defaultFrom,
-  dateTo: defaultTo,
-  setDateFrom: (dateFrom) => set({ dateFrom }),
-  setDateTo: (dateTo) => set({ dateTo }),
-  setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
+      // Date range
+      dateFrom: defaultFrom,
+      dateTo: defaultTo,
+      setDateFrom: (dateFrom) => set({ dateFrom }),
+      setDateTo: (dateTo) => set({ dateTo }),
+      setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
 
-  // Granularity
-  granularity: 'month',
-  setGranularity: (granularity) => set({ granularity }),
+      // Granularity
+      granularity: 'month',
+      setGranularity: (granularity) => set({ granularity }),
 
-  // Project filter
-  selectedProjectId: null,
-  setSelectedProjectId: (selectedProjectId) => set({ selectedProjectId }),
+      // Project filter
+      selectedProjectId: null,
+      setSelectedProjectId: (selectedProjectId) => set({ selectedProjectId }),
 
-  // Drill-down state
-  selectedDay: null,
-  selectedModel: null,
-  selectedSession: null,
-  setSelectedDay: (selectedDay) => set({ selectedDay }),
-  setSelectedModel: (selectedModel) => set({ selectedModel }),
-  setSelectedSession: (selectedSession) => set({ selectedSession }),
+      // Drill-down state
+      selectedDay: null,
+      selectedModel: null,
+      selectedSession: null,
+      setSelectedDay: (selectedDay) => set({ selectedDay }),
+      setSelectedModel: (selectedModel) => set({ selectedModel }),
+      setSelectedSession: (selectedSession) => set({ selectedSession }),
 
-  // Live mode
-  liveMode: false,
-  liveInterval: 30,
-  toggleLiveMode: () => set((s) => ({ liveMode: !s.liveMode })),
-  setLiveInterval: (liveInterval) => set({ liveInterval }),
+      // Live mode
+      liveMode: false,
+      liveInterval: 30,
+      toggleLiveMode: () => set((s) => ({ liveMode: !s.liveMode })),
+      setLiveInterval: (liveInterval) => set({ liveInterval }),
 
-  // Selected items
-  selectedHour: null,
-  setSelectedHour: (selectedHour) => set({ selectedHour }),
+      // Selected items
+      selectedHour: null,
+      setSelectedHour: (selectedHour) => set({ selectedHour }),
 
-  // Drawers
-  activeDrawer: null,
-  setActiveDrawer: (activeDrawer) => set({ activeDrawer }),
+      // Drawers
+      activeDrawer: null,
+      setActiveDrawer: (activeDrawer) => set({ activeDrawer }),
 
-  // Settings
-  settingsOpen: false,
-  toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
+      // Settings
+      settingsOpen: false,
+      toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
 
-  // Search
-  searchQuery: '',
-  setSearchQuery: (searchQuery) => set({ searchQuery }),
-}));
+      // Search
+      searchQuery: '',
+      setSearchQuery: (searchQuery) => set({ searchQuery }),
+    }),
+    {
+      name: 'command-center-ui',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        darkMode: state.darkMode,
+        dateFrom: state.dateFrom,
+        dateTo: state.dateTo,
+        selectedProjectId: state.selectedProjectId,
+      }),
+    }
+  )
+);
