@@ -78,6 +78,9 @@ uv run command-center --verbose
 - `--force-rescan` - Ignore file tracking, rescan all files
 - `--rebuild-db` - Delete and rebuild database from scratch
 - `--db-stats` - Show database statistics and exit
+- `--update-pricing` - Update pricing cache from LiteLLM and exit
+- `--list-projects` - List all discovered projects with metadata
+- `--update-project` - Update project: PROJECT_ID "name" "description"
 
 ### How It Works
 
