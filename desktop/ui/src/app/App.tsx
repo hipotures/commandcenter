@@ -68,6 +68,14 @@ const formatCurrency = (num: number): string => {
   return '$' + num.toFixed(2);
 };
 
+const getTickInterval = (dataLength: number, targetTicks = 12): number => {
+  if (dataLength <= targetTicks) {
+    return 0;
+  }
+
+  return Math.max(1, Math.ceil(dataLength / targetTicks) - 1);
+};
+
 const EmptyChartState = ({ message }: { message: string }) => (
   <div style={{
     height: '100%',
@@ -541,6 +549,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
   const [selectedLimitTypes, setSelectedLimitTypes] = useState<Set<string>>(new Set());
   const safeData = Array.isArray(data) ? data : [];
   const hasData = safeData.length > 0;
+  const xAxisInterval = getTickInterval(safeData.length);
 
   const metrics = [
     { key: 'messages', label: 'Messages', color: tokens.colors.accentPrimary },
@@ -668,6 +677,8 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
                 tickFormatter={formatPeriodLabel}
                 angle={0}
                 height={40}
+                interval={xAxisInterval}
+                minTickGap={16}
               />
               <YAxis
                 axisLine={false}
