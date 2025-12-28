@@ -12,7 +12,7 @@ import {
   Calendar, TrendingUp, Clock, Cpu, ChevronDown, Download,
   RefreshCw, Settings, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
-import { useDashboard, useLimitResets } from './state/queries';
+import { useDashboard, useLimitResets, useProjects } from './state/queries';
 import { SettingsDrawer } from './components/drawers/SettingsDrawer';
 import { ProjectSelector } from './components/ProjectSelector';
 import { useAppStore } from './state/store';
@@ -549,7 +549,9 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
   const [selectedLimitTypes, setSelectedLimitTypes] = useState<Set<string>>(new Set());
   const safeData = Array.isArray(data) ? data : [];
   const hasData = safeData.length > 0;
-  const xAxisInterval = getTickInterval(safeData.length);
+  const isHourly = granularity === 'hour';
+  const xAxisInterval = getTickInterval(safeData.length, isHourly ? 6 : 12);
+  const chartMargin = { top: 10, right: 30, left: 0, bottom: isHourly ? 24 : 0 };
 
   const metrics = [
     { key: 'messages', label: 'Messages', color: tokens.colors.accentPrimary },
@@ -585,10 +587,13 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
   // Format period label based on granularity
   const formatPeriodLabel = (period: string) => {
     if (granularity === 'hour') {
-      // 2025-01-15 14 -> 14:00
+      // 2025-01-15 14 -> Jan 15 14:00
       const parts = period.split(' ');
       if (parts.length === 2) {
-        return `${parts[1].padStart(2, '0')}:00`;
+        const [datePart, hourPart] = parts;
+        const date = new Date(`${datePart}T${hourPart.padStart(2, '0')}:00:00`);
+        const dayLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return `${dayLabel} ${hourPart.padStart(2, '0')}:00`;
       }
       return period;
     } else if (granularity === 'day') {
@@ -661,7 +666,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
         <div style={{ flex: 1, height: '280px', minWidth: 0 }}>
         {hasData ? (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={safeData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <AreaChart data={safeData} margin={chartMargin}>
               <defs>
                 <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={tokens.colors.accentPrimary} stopOpacity={0.3}/>
@@ -673,12 +678,17 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
                 dataKey="period"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: tokens.colors.textMuted, fontSize: 11 }}
+                tick={{
+                  fill: tokens.colors.textMuted,
+                  fontSize: 11,
+                  textAnchor: isHourly ? 'end' : 'middle',
+                }}
                 tickFormatter={formatPeriodLabel}
-                angle={0}
-                height={40}
+                angle={isHourly ? -45 : 0}
+                height={isHourly ? 72 : 40}
                 interval={xAxisInterval}
-                minTickGap={16}
+                minTickGap={isHourly ? 32 : 16}
+                tickMargin={isHourly ? 8 : 4}
               />
               <YAxis
                 axisLine={false}
@@ -1316,6 +1326,7 @@ function DashboardContent() {
 
   // Settings drawer state and project filter
   const { settingsOpen, toggleSettings, selectedProjectId } = useAppStore();
+  const { data: projectsData } = useProjects();
 
   // Debug log
   console.log('[DashboardContent] selectedProjectId:', selectedProjectId);
@@ -1327,9 +1338,10 @@ function DashboardContent() {
     const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 
     if (daysDiff <= 2) return 'hour';      // Up to 2 days -> hourly
-    if (daysDiff <= 60) return 'day';      // 3-60 days (2 months) -> daily
-    if (daysDiff <= 180) return 'week';    // 60-180 days (2-6 months) -> weekly
-    return 'month';                         // > 6 months -> monthly
+    if (daysDiff <= 14) return 'hour';     // Up to 14 days -> hourly
+    if (daysDiff <= 60) return 'day';      // 15-60 days -> daily
+    if (daysDiff <= 180) return 'week';    // 61-180 days -> weekly
+    return 'month';                         // > 180 days -> monthly
   };
 
   const granularity = calculateGranularity(dateRange.from, dateRange.to);
@@ -1436,6 +1448,63 @@ function DashboardContent() {
       </div>
     );
   }
+
+  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const normalizeDateString = (value: string) => value.split('T')[0].split(' ')[0];
+  const setRange = (from: string, to: string) => {
+    setDateRange({ from, to });
+    setShowPicker(false);
+  };
+  const setRangeLastDays = (days: number) => {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(end.getDate() - (days - 1));
+    setRange(formatDate(start), formatDate(end));
+  };
+  const setRangeLast24Hours = () => {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(end.getDate() - 1);
+    setRange(formatDate(start), formatDate(end));
+  };
+  const getProjectRange = () => {
+    const projects = projectsData?.projects || [];
+
+    if (selectedProjectId) {
+      const project = projects.find(p => p.project_id === selectedProjectId);
+      return {
+        start: project?.first_seen ? normalizeDateString(project.first_seen) : null,
+        end: project?.last_seen ? normalizeDateString(project.last_seen) : null,
+      };
+    }
+
+    let earliest: string | null = null;
+    let latest: string | null = null;
+    for (const project of projects) {
+      if (!project.first_seen || !project.last_seen) {
+        continue;
+      }
+      const start = normalizeDateString(project.first_seen);
+      const end = normalizeDateString(project.last_seen);
+      if (!earliest || start < earliest) {
+        earliest = start;
+      }
+      if (!latest || end > latest) {
+        latest = end;
+      }
+    }
+
+    return { start: earliest, end: latest };
+  };
+
+  const setRangeAll = () => {
+    const { start, end } = getProjectRange();
+    const fallbackStart = apiData.totals.first_session_date
+      ? normalizeDateString(apiData.totals.first_session_date)
+      : defaultFrom;
+    const fallbackEnd = formatDate(new Date());
+    setRange(start || fallbackStart, end || fallbackEnd);
+  };
 
   // Transform API data to component format
   const data = {
@@ -1689,11 +1758,7 @@ function DashboardContent() {
                     borderTop: `1px solid ${tokens.colors.surfaceBorder}`,
                   }}>
                     <button
-                      onClick={() => {
-                        const today = new Date().toISOString().split('T')[0];
-                        setDateRange({ from: today, to: today });
-                        setShowPicker(false);
-                      }}
+                      onClick={setRangeLast24Hours}
                       style={{
                         padding: '8px 12px',
                         borderRadius: '6px',
@@ -1716,22 +1781,10 @@ function DashboardContent() {
                         e.currentTarget.style.borderColor = tokens.colors.surfaceBorder;
                       }}
                     >
-                      Today
+                      Last 24h
                     </button>
                     <button
-                      onClick={() => {
-                        const today = new Date();
-                        const dayOfWeek = today.getDay();
-                        const start = new Date(today);
-                        start.setDate(today.getDate() - dayOfWeek);
-                        const end = new Date(today);
-                        end.setDate(today.getDate() + (6 - dayOfWeek));
-                        setDateRange({
-                          from: start.toISOString().split('T')[0],
-                          to: end.toISOString().split('T')[0]
-                        });
-                        setShowPicker(false);
-                      }}
+                      onClick={() => setRangeLastDays(7)}
                       style={{
                         padding: '8px 12px',
                         borderRadius: '6px',
@@ -1754,19 +1807,10 @@ function DashboardContent() {
                         e.currentTarget.style.borderColor = tokens.colors.surfaceBorder;
                       }}
                     >
-                      This Week
+                      Last 7 days
                     </button>
                     <button
-                      onClick={() => {
-                        const today = new Date();
-                        const start = new Date(today.getFullYear(), today.getMonth(), 1);
-                        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                        setDateRange({
-                          from: start.toISOString().split('T')[0],
-                          to: end.toISOString().split('T')[0]
-                        });
-                        setShowPicker(false);
-                      }}
+                      onClick={() => setRangeLastDays(14)}
                       style={{
                         padding: '8px 12px',
                         borderRadius: '6px',
@@ -1789,20 +1833,10 @@ function DashboardContent() {
                         e.currentTarget.style.borderColor = tokens.colors.surfaceBorder;
                       }}
                     >
-                      This Month
+                      Last 14 days
                     </button>
                     <button
-                      onClick={() => {
-                        const today = new Date();
-                        const year = today.getFullYear();
-                        const month = String(today.getMonth() + 1).padStart(2, '0');
-                        const day = String(today.getDate()).padStart(2, '0');
-                        setDateRange({
-                          from: `${year}-01-01`,
-                          to: `${year}-${month}-${day}`
-                        });
-                        setShowPicker(false);
-                      }}
+                      onClick={() => setRangeLastDays(30)}
                       style={{
                         padding: '8px 12px',
                         borderRadius: '6px',
@@ -1825,7 +1859,59 @@ function DashboardContent() {
                         e.currentTarget.style.borderColor = tokens.colors.surfaceBorder;
                       }}
                     >
-                      This Year
+                      Last 30 days
+                    </button>
+                    <button
+                      onClick={() => setRangeLastDays(90)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: `1px solid ${tokens.colors.surfaceBorder}`,
+                        background: tokens.colors.background,
+                        color: tokens.colors.textSecondary,
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = tokens.colors.accentPrimary;
+                        e.currentTarget.style.color = tokens.colors.surface;
+                        e.currentTarget.style.borderColor = tokens.colors.accentPrimary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = tokens.colors.background;
+                        e.currentTarget.style.color = tokens.colors.textSecondary;
+                        e.currentTarget.style.borderColor = tokens.colors.surfaceBorder;
+                      }}
+                    >
+                      Last 90 days
+                    </button>
+                    <button
+                      onClick={setRangeAll}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: `1px solid ${tokens.colors.surfaceBorder}`,
+                        background: tokens.colors.background,
+                        color: tokens.colors.textSecondary,
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = tokens.colors.accentPrimary;
+                        e.currentTarget.style.color = tokens.colors.surface;
+                        e.currentTarget.style.borderColor = tokens.colors.accentPrimary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = tokens.colors.background;
+                        e.currentTarget.style.color = tokens.colors.textSecondary;
+                        e.currentTarget.style.borderColor = tokens.colors.surfaceBorder;
+                      }}
+                    >
+                      All
                     </button>
                   </div>
 
