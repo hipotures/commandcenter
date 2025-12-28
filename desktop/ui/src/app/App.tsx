@@ -643,7 +643,7 @@ const ActivityHeatmap = ({ data, dateFrom, dateTo }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MODEL DISTRIBUTION CHART
 // ═══════════════════════════════════════════════════════════════════════════════
-const ModelDistribution = ({ data }: any) => {
+const ModelDistribution = ({ data, isExporting = false }: any) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const safeData = Array.isArray(data) ? data : [];
   const hasData = safeData.length > 0;
@@ -706,26 +706,28 @@ const ModelDistribution = ({ data }: any) => {
                   />
                 ))}
               </Pie>
-              <Tooltip 
-                content={({ payload }) => {
-                  if (!payload || !payload[0]) return null;
-                  const item = payload[0].payload;
-                  return (
-                    <div style={{
-                      background: tokens.colors.textPrimary,
-                      color: tokens.colors.surface,
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      boxShadow: tokens.shadows.lg,
-                    }}>
-                      <div style={{ fontWeight: '600', marginBottom: '4px' }}>{item.displayName}</div>
-                      <div>{formatNumber(item.tokens)} tokens</div>
-                      <div style={{ color: tokens.colors.heatmap[2] }}>{formatCurrency(item.cost)}</div>
-                    </div>
-                  );
-                }}
-              />
+              {!isExporting && (
+                <Tooltip 
+                  content={({ payload }) => {
+                    if (!payload || !payload[0]) return null;
+                    const item = payload[0].payload;
+                    return (
+                      <div style={{
+                        background: tokens.colors.textPrimary,
+                        color: tokens.colors.surface,
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        boxShadow: tokens.shadows.lg,
+                      }}>
+                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{item.displayName}</div>
+                        <div>{formatNumber(item.tokens)} tokens</div>
+                        <div style={{ color: tokens.colors.heatmap[2] }}>{formatCurrency(item.cost)}</div>
+                      </div>
+                    );
+                  }}
+                />
+              )}
             </PieChart>
           </ResponsiveContainer>
         ) : (
@@ -786,7 +788,7 @@ const ModelDistribution = ({ data }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ACTIVITY TIMELINE CHART
 // ═══════════════════════════════════════════════════════════════════════════════
-const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
+const ActivityTimeline = ({ data, granularity, limitResets = [], isExporting = false }: any) => {
   const [metric, setMetric] = useState('messages');
   const [selectedLimitTypes, setSelectedLimitTypes] = useState<Set<string>>(new Set());
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -989,18 +991,20 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
                 tick={{ fill: tokens.colors.textMuted, fontSize: 12 }}
                 tickFormatter={(val) => formatNumber(val)}
               />
-              <Tooltip
-                contentStyle={{
-                  background: tokens.colors.textPrimary,
-                  border: 'none',
-                  borderRadius: '8px',
-                  boxShadow: tokens.shadows.lg,
-                }}
-                labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
-                itemStyle={{ color: tokens.colors.heatmap[2] }}
-                labelFormatter={(value: any) => formatTooltipLabel(Number(value))}
-                formatter={(val: any) => [metric === 'cost' ? formatCurrency(val) : formatNumber(val), metrics.find(m => m.key === metric)?.label]}
-              />
+              {!isExporting && (
+                <Tooltip
+                  contentStyle={{
+                    background: tokens.colors.textPrimary,
+                    border: 'none',
+                    borderRadius: '8px',
+                    boxShadow: tokens.shadows.lg,
+                  }}
+                  labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
+                  itemStyle={{ color: tokens.colors.heatmap[2] }}
+                  labelFormatter={(value: any) => formatTooltipLabel(Number(value))}
+                  formatter={(val: any) => [metric === 'cost' ? formatCurrency(val) : formatNumber(val), metrics.find(m => m.key === metric)?.label]}
+                />
+              )}
               <Area
                 type="monotone"
                 dataKey={metric}
@@ -1133,7 +1137,7 @@ const ActivityTimeline = ({ data, granularity, limitResets = [] }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // HOURLY PATTERNS CHART
 // ═══════════════════════════════════════════════════════════════════════════════
-const HourlyPatterns = ({ data }: any) => {
+const HourlyPatterns = ({ data, isExporting = false }: any) => {
   const safeData = Array.isArray(data) ? data : [];
   const hasData = safeData.length > 0;
   const peakHour = hasData
@@ -1178,17 +1182,19 @@ const HourlyPatterns = ({ data }: any) => {
                 tickLine={false}
                 tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
               />
-              <Tooltip
-                contentStyle={{
-                  background: tokens.colors.textPrimary,
-                  border: 'none',
-                  borderRadius: '8px',
-                  boxShadow: tokens.shadows.lg,
-                }}
-                labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
-                itemStyle={{ color: tokens.colors.heatmap[2] }}
-                formatter={(val) => [val + ' messages', 'Activity']}
-              />
+              {!isExporting && (
+                <Tooltip
+                  contentStyle={{
+                    background: tokens.colors.textPrimary,
+                    border: 'none',
+                    borderRadius: '8px',
+                    boxShadow: tokens.shadows.lg,
+                  }}
+                  labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
+                  itemStyle={{ color: tokens.colors.heatmap[2] }}
+                  formatter={(val) => [val + ' messages', 'Activity']}
+                />
+              )}
               <Bar 
                 dataKey="activity" 
                 fill={tokens.colors.accentPrimary}
@@ -1210,9 +1216,10 @@ const HourlyPatterns = ({ data }: any) => {
           padding: '12px',
           background: 'var(--color-accent-primary-10)',
           borderRadius: '8px',
+          flexWrap: 'nowrap',
         }}>
           <Zap size={16} style={{ color: tokens.colors.accentPrimary }} />
-          <span style={{ fontSize: '13px', color: tokens.colors.textSecondary }}>
+          <span style={{ fontSize: '13px', color: tokens.colors.textSecondary, whiteSpace: 'nowrap' }}>
             Peak activity: <strong>{peakHour.hour}</strong> ({peakHour.activity} avg messages)
           </span>
         </div>
@@ -1224,7 +1231,7 @@ const HourlyPatterns = ({ data }: any) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // DAILY PATTERNS CHART
 // ═══════════════════════════════════════════════════════════════════════════════
-const DailyPatterns = ({ data }: any) => {
+const DailyPatterns = ({ data, isExporting = false }: any) => {
   const safeData = Array.isArray(data) ? data : [];
   const hasData = safeData.length > 0;
   const peakDay = hasData
@@ -1268,17 +1275,19 @@ const DailyPatterns = ({ data }: any) => {
                 tickLine={false}
                 tick={{ fill: tokens.colors.textMuted, fontSize: 10 }}
               />
-              <Tooltip
-                contentStyle={{
-                  background: tokens.colors.textPrimary,
-                  border: 'none',
-                  borderRadius: '8px',
-                  boxShadow: tokens.shadows.lg,
-                }}
-                labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
-                itemStyle={{ color: tokens.colors.heatmap[2] }}
-                formatter={(val) => [val + ' messages', 'Activity']}
-              />
+              {!isExporting && (
+                <Tooltip
+                  contentStyle={{
+                    background: tokens.colors.textPrimary,
+                    border: 'none',
+                    borderRadius: '8px',
+                    boxShadow: tokens.shadows.lg,
+                  }}
+                  labelStyle={{ color: tokens.colors.surface, fontWeight: '600' }}
+                  itemStyle={{ color: tokens.colors.heatmap[2] }}
+                  formatter={(val) => [val + ' messages', 'Activity']}
+                />
+              )}
               <Bar
                 dataKey="activity"
                 fill={tokens.colors.accentPrimary}
@@ -1300,9 +1309,10 @@ const DailyPatterns = ({ data }: any) => {
           padding: '12px',
           background: 'var(--color-accent-primary-10)',
           borderRadius: '8px',
+          flexWrap: 'nowrap',
         }}>
           <Zap size={16} style={{ color: tokens.colors.accentPrimary }} />
-          <span style={{ fontSize: '13px', color: tokens.colors.textSecondary }}>
+          <span style={{ fontSize: '13px', color: tokens.colors.textSecondary, whiteSpace: 'nowrap' }}>
             Most active day: <strong>{peakDay.day}</strong> ({peakDay.activity} avg messages)
           </span>
         </div>
@@ -2630,6 +2640,7 @@ function DashboardContent() {
             data={data.timelineData}
             granularity={granularity}
             limitResets={limitResets || []}
+            isExporting={isExporting}
           />
         </div>
 
@@ -2640,7 +2651,7 @@ function DashboardContent() {
           gap: '20px',
           marginBottom: '32px',
         }}>
-          <ModelDistribution data={data.modelData} />
+          <ModelDistribution data={data.modelData} isExporting={isExporting} />
           <CacheEfficiency
             cacheRead={data.totals.cacheRead}
             cacheWrite={data.totals.cacheWrite}
@@ -2663,8 +2674,8 @@ function DashboardContent() {
           gap: '20px',
           marginBottom: '32px',
         }}>
-          <HourlyPatterns data={data.hourlyData} />
-          <DailyPatterns data={data.dailyData} />
+          <HourlyPatterns data={data.hourlyData} isExporting={isExporting} />
+          <DailyPatterns data={data.dailyData} isExporting={isExporting} />
         </div>
         
         {/* Sessions Table */}
