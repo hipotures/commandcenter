@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# No verbose, only json: VERBOSE=0 bash cc_usage.sh
+# Verbose logs to stderr: VERBOSE=1 bash cc_usage.sh
 
 OUTDIR="${OUTDIR:-/tmp/claude-stats}"
 CLAUDE_CMD="${CLAUDE_CMD:-claude --no-chrome}"
@@ -13,7 +13,7 @@ TIMEOUT_STATUS="${TIMEOUT_STATUS:-45}"
 TIMEOUT_USAGE="${TIMEOUT_USAGE:-45}"
 ATTEMPTS="${ATTEMPTS:-3}"
 
-VERBOSE="${VERBOSE:-1}"
+VERBOSE="${VERBOSE:-0}"
 
 mkdir -p "$OUTDIR"
 ts="$(date +%Y%m%d-%H%M%S)"
@@ -28,7 +28,7 @@ log() {
 }
 
 cleanup() {
-  # wyjdź z Usage i z Claude, potem ubij tmux
+  # Exit Usage and Claude, then stop tmux.
   tmux send-keys -t "$TARGET" Escape 2>/dev/null || true
   tmux send-keys -t "$TARGET" C-d 2>/dev/null || true
   sleep 0.1
@@ -44,7 +44,7 @@ tmux new-session -d -s "$SESSION" -x "$WIDTH" -y "$HEIGHT"
 log "Start Claude: $CLAUDE_CMD"
 tmux send-keys -t "$TARGET" "$CLAUDE_CMD" Enter
 
-# czekaj aż prompt Claude się pojawi (linia zaczyna się od '>')
+# Wait for the Claude prompt (line starts with '>').
 start=$SECONDS
 while (( SECONDS - start < TIMEOUT_READY )); do
   pane="$(tmux capture-pane -p -J -t "$TARGET" 2>/dev/null || true | tr $'\302\240' ' ')"
@@ -55,10 +55,10 @@ while (( SECONDS - start < TIMEOUT_READY )); do
 done
 
 ok_status=0
-log "Próby wejścia w /status: ATTEMPTS=$ATTEMPTS"
+log "Attempts to enter /status: ATTEMPTS=$ATTEMPTS"
 
 for ((i=1; i<=ATTEMPTS; i++)); do
-  log "Attempt $i: wysyłam /status (Enter x2)"
+  log "Attempt $i: sending /status (Enter x2)"
   tmux send-keys -t "$TARGET" "/status" Enter
   sleep 0.3
   tmux send-keys -t "$TARGET" Enter
@@ -67,7 +67,7 @@ for ((i=1; i<=ATTEMPTS; i++)); do
   while (( SECONDS - start < TIMEOUT_STATUS )); do
     pane="$(tmux capture-pane -p -J -t "$TARGET" 2>/dev/null || true | tr $'\302\240' ' ')"
 
-    # jeśli jesteśmy na liście slash-komend, Enter wybiera /status
+    # If we're on the slash command list, Enter selects /status.
     if grep -qE '^[[:space:]]*/status[[:space:]]+' <<<"$pane"; then
       tmux send-keys -t "$TARGET" Enter
       sleep 0.3
@@ -75,7 +75,7 @@ for ((i=1; i<=ATTEMPTS; i++)); do
 
     if grep -qE '^[[:space:]]*Email:[[:space:]]+' <<<"$pane"; then
       ok_status=1
-      log "Ekran Status wykryty."
+      log "Status screen detected."
       break
     fi
 
@@ -86,7 +86,7 @@ for ((i=1; i<=ATTEMPTS; i++)); do
 done
 
 tmux capture-pane -p -J -t "$TARGET" > "$status_logfile"
-log "Zapisano snapshot status: $status_logfile"
+log "Saved status snapshot: $status_logfile"
 
 if (( ok_status == 0 )); then
   printf '{"error":"failed_to_capture_status_screen","status_logfile":"%s","tmux_session":"%s"}\n' "$status_logfile" "$SESSION"
@@ -113,15 +113,15 @@ if [[ -z "$email" ]]; then
   exit 1
 fi
 
-log "Zamykam Status (Esc)"
+log "Closing Status (Esc)"
 tmux send-keys -t "$TARGET" Escape
 sleep 0.2
 
 ok=0
-log "Próby wejścia w /usage: ATTEMPTS=$ATTEMPTS"
+log "Attempts to enter /usage: ATTEMPTS=$ATTEMPTS"
 
 for ((i=1; i<=ATTEMPTS; i++)); do
-  log "Attempt $i: wysyłam /usage (Enter x2)"
+  log "Attempt $i: sending /usage (Enter x2)"
   tmux send-keys -t "$TARGET" "/usage" Enter
   sleep 0.2
   tmux send-keys -t "$TARGET" Enter
@@ -130,7 +130,7 @@ for ((i=1; i<=ATTEMPTS; i++)); do
   while (( SECONDS - start < TIMEOUT_USAGE )); do
     pane="$(tmux capture-pane -p -J -t "$TARGET" 2>/dev/null || true | tr $'\302\240' ' ')"
 
-    # jeśli jesteśmy na liście slash-komend, Enter wybiera /usage
+    # If we're on the slash command list, Enter selects /usage.
     if grep -qE '^[[:space:]]*/usage[[:space:]]+Show plan usage limits' <<<"$pane"; then
       tmux send-keys -t "$TARGET" Enter
       sleep 0.2
@@ -138,7 +138,7 @@ for ((i=1; i<=ATTEMPTS; i++)); do
 
     if grep -qE 'Current session|Current week \(all models\)|Resets[[:space:]]' <<<"$pane"; then
       ok=1
-      log "Ekran Usage wykryty."
+      log "Usage screen detected."
       break
     fi
 
@@ -149,22 +149,21 @@ for ((i=1; i<=ATTEMPTS; i++)); do
 done
 
 tmux capture-pane -p -J -t "$TARGET" > "$logfile"
-log "Zapisano snapshot: $logfile"
+log "Saved snapshot: $logfile"
 
 if (( ok == 0 )); then
   printf '{"error":"failed_to_capture_usage_screen","logfile":"%s","tmux_session":"%s"}\n' "$logfile" "$SESSION"
   exit 1
 fi
 
-# wyjście z Usage i Claude (tak jak u Ciebie działa)
-log "Zamykam Usage (Esc) i wychodzę z Claude (Ctrl-D x2)"
+# Exit Usage and Claude (works in your setup).
+log "Closing Usage (Esc) and exiting Claude (Ctrl-D x2)"
 tmux send-keys -t "$TARGET" Escape
 sleep 0.1
 tmux send-keys -t "$TARGET" C-d
 sleep 0.1
 tmux send-keys -t "$TARGET" C-d
 
-# PARSER (ten sam co w cc_usage11.sh – tylko domknięty i z plikiem wejściowym)
 awk -v logfile="$logfile" -v email="$email" '
 function trim(s){ sub(/^[[:space:]]+/,"",s); sub(/[[:space:]]+$/,"",s); return s }
 BEGIN{ mode=""; s_used=""; w_used=""; w_reset="" }
