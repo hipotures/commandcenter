@@ -69,6 +69,17 @@ export interface SessionSummary {
   cost: number;
   first_time: string;
   last_time: string;
+  models?: Array<{
+    model: string;
+    display_name: string;
+    messages: number;
+    tokens: number;
+    input_tokens: number;
+    output_tokens: number;
+    cost: number;
+    first_time: string;
+    last_time: string;
+  }>;
 }
 
 export interface DashboardBundle {

@@ -598,7 +598,7 @@ def query_recent_sessions(
     project_id: Optional[str] = None
 ) -> list[dict]:
     """
-    Query top sessions with aggregated stats.
+    Query top sessions with aggregated stats and per-model breakdowns.
 
     Args:
         conn: Database connection
@@ -616,7 +616,6 @@ def query_recent_sessions(
         cursor.execute("""
             SELECT
                 session_id,
-                model,
                 COUNT(*) as messages,
                 SUM(total_tokens) as tokens,
                 SUM(input_tokens) as input_tokens,
@@ -634,7 +633,6 @@ def query_recent_sessions(
         cursor.execute("""
             SELECT
                 session_id,
-                model,
                 COUNT(*) as messages,
                 SUM(total_tokens) as tokens,
                 SUM(input_tokens) as input_tokens,
@@ -649,11 +647,53 @@ def query_recent_sessions(
             LIMIT ?
         """, (date_from, date_to, limit))
 
-    return [
-        {
-            "session_id": row[0],
-            "model": row[1],
-            "display_name": format_model_name(row[1]) if row[1] else "Unknown",
+    summary_rows = cursor.fetchall()
+    if not summary_rows:
+        return []
+
+    session_ids = [row[0] for row in summary_rows]
+    placeholders = ", ".join("?" for _ in session_ids)
+
+    if project_id:
+        cursor.execute(f"""
+            SELECT
+                session_id,
+                COALESCE(model, 'Unknown') as model,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost,
+                MIN(timestamp_local) as first_time,
+                MAX(timestamp_local) as last_time
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND project_id = ? AND session_id IN ({placeholders})
+            GROUP BY session_id, COALESCE(model, 'Unknown')
+        """, (date_from, date_to, project_id, *session_ids))
+    else:
+        cursor.execute(f"""
+            SELECT
+                session_id,
+                COALESCE(model, 'Unknown') as model,
+                COUNT(*) as messages,
+                SUM(total_tokens) as tokens,
+                SUM(input_tokens) as input_tokens,
+                SUM(output_tokens) as output_tokens,
+                SUM(COALESCE(cost_usd, 0)) as cost,
+                MIN(timestamp_local) as first_time,
+                MAX(timestamp_local) as last_time
+            FROM message_entries
+            WHERE date >= ? AND date <= ? AND session_id IN ({placeholders})
+            GROUP BY session_id, COALESCE(model, 'Unknown')
+        """, (date_from, date_to, *session_ids))
+
+    breakdown_rows = cursor.fetchall()
+    breakdown_by_session: dict[str, list[dict]] = {}
+    for row in breakdown_rows:
+        model = row[1]
+        breakdown_by_session.setdefault(row[0], []).append({
+            "model": model,
+            "display_name": format_model_name(model) if model else "Unknown",
             "messages": row[2] or 0,
             "tokens": row[3] or 0,
             "input_tokens": row[4] or 0,
@@ -661,9 +701,38 @@ def query_recent_sessions(
             "cost": round(row[6] or 0, 4),
             "first_time": row[7],
             "last_time": row[8]
-        }
-        for row in cursor.fetchall()
-    ]
+        })
+
+    for session_id, items in breakdown_by_session.items():
+        items.sort(key=lambda r: (-(r["cost"] or 0), -(r["tokens"] or 0), r["last_time"] or ""))
+
+    results = []
+    for row in summary_rows:
+        session_id = row[0]
+        models = breakdown_by_session.get(session_id, [])
+        model_names = []
+        display_names = []
+        for item in models:
+            if item["model"] not in model_names:
+                model_names.append(item["model"])
+            if item["display_name"] not in display_names:
+                display_names.append(item["display_name"])
+
+        results.append({
+            "session_id": session_id,
+            "model": ", ".join(model_names) if model_names else "Unknown",
+            "display_name": ", ".join(display_names) if display_names else "Unknown",
+            "messages": row[1] or 0,
+            "tokens": row[2] or 0,
+            "input_tokens": row[3] or 0,
+            "output_tokens": row[4] or 0,
+            "cost": round(row[5] or 0, 4),
+            "first_time": row[6],
+            "last_time": row[7],
+            "models": models
+        })
+
+    return results
 
 
 def query_totals(

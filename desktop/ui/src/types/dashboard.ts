@@ -46,12 +46,19 @@ export interface DashboardModelPoint {
 
 export interface DashboardSession {
   id: string;
-  model: string;
   messages: number;
   tokens: number;
   cost: number;
   date: string;
   duration: string;
+  models: Array<{
+    model: string;
+    messages: number;
+    tokens: number;
+    cost: number;
+    date: string;
+    duration: string;
+  }>;
 }
 
 export interface DashboardDataRange {

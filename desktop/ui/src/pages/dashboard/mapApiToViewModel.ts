@@ -46,12 +46,19 @@ export const mapApiToViewModel = (apiData: DashboardBundle): DashboardViewModel 
   }));
   const sessions = apiData.recent_sessions.map((session) => ({
     id: session.session_id,
-    model: session.display_name,
     messages: session.messages,
     tokens: session.tokens,
     cost: session.cost,
     date: normalizeDateString(session.first_time || '') || 'N/A',
     duration: formatDurationRange(session.first_time, session.last_time),
+    models: (session.models ?? []).map((model) => ({
+      model: model.display_name,
+      messages: model.messages,
+      tokens: model.tokens,
+      cost: model.cost,
+      date: normalizeDateString(model.first_time || '') || 'N/A',
+      duration: formatDurationRange(model.first_time, model.last_time),
+    })),
   }));
 
   return {

@@ -7,6 +7,13 @@ import { tokens } from '../../styles/tokens';
 export function SessionsTable({ sessions, isExporting = false }: SessionsTableProps) {
   const [sessionLimit, setSessionLimit] = useState('10');
   const visibleSessions = sessions.slice(0, Number(sessionLimit));
+  const rows = visibleSessions.flatMap((session) => {
+    const modelRows =
+      session.models.length > 1
+        ? session.models.map((model) => ({ type: 'model' as const, session, model }))
+        : [];
+    return [{ type: 'summary' as const, session }, ...modelRows];
+  });
 
   return (
     <div
@@ -109,77 +116,102 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
             </tr>
           </thead>
           <tbody>
-            {visibleSessions.map((session, idx) => (
-              <tr
-                key={session.id}
-                style={{
-                  transition: 'background 0.15s ease',
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(event) => {
-                  event.currentTarget.style.background = tokens.colors.background;
-                }}
-                onMouseLeave={(event) => {
-                  event.currentTarget.style.background = 'transparent';
-                }}
-              >
-                <td
+            {rows.map((row, idx) => {
+              const isSummary = row.type === 'summary';
+              const session = row.session;
+              const model = isSummary ? null : row.model;
+              const isLastRow = idx === rows.length - 1;
+              const rowKey = isSummary ? `${session.id}-summary` : `${session.id}-${model?.model ?? 'model'}`;
+              const baseBackground = isSummary ? 'var(--color-surface-hover)' : 'transparent';
+              const hoverBackground = tokens.colors.background;
+
+              return (
+                <tr
+                  key={rowKey}
                   style={{
-                    padding: '16px',
-                    fontSize: '13px',
-                    fontFamily: "'DM Mono', monospace",
-                    color: tokens.colors.textSecondary,
-                    borderBottom:
-                      idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+                    transition: 'background 0.15s ease',
+                    cursor: 'pointer',
+                    background: baseBackground,
+                  }}
+                  onMouseEnter={(event) => {
+                  event.currentTarget.style.background = hoverBackground;
+                  }}
+                  onMouseLeave={(event) => {
+                  event.currentTarget.style.background = baseBackground;
                   }}
                 >
-                  <span title={session.id}>{truncateId(session.id)}</span>
-                </td>
-                <td
-                  style={{
-                    padding: '16px',
-                    borderBottom:
-                      idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
-                  }}
-                >
-                  <span
+                {isSummary ? (
+                  <td
+                    colSpan={2}
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '4px 10px',
-                      borderRadius: '12px',
-                      fontSize: '12px',
+                      padding: '16px',
+                      fontSize: '13px',
+                      fontFamily: "'DM Mono', monospace",
                       fontWeight: '600',
-                      background: 'var(--color-accent-primary-15)',
-                      color: tokens.colors.accentPrimary,
-                      whiteSpace: 'nowrap',
+                      color: tokens.colors.textSecondary,
+                      borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                     }}
                   >
-                    {session.model}
-                  </span>
-                </td>
+                    <span title={session.id}>{session.id}</span>
+                  </td>
+                ) : (
+                  <>
+                    <td
+                      style={{
+                        padding: '16px',
+                        fontSize: '13px',
+                        fontFamily: "'DM Mono', monospace",
+                        fontWeight: '400',
+                        color: tokens.colors.textSecondary,
+                        borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
+                      }}
+                    />
+                    <td
+                      style={{
+                        padding: '16px',
+                        borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
+                      }}
+                    >
+                      {model ? (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '4px 10px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            background: 'var(--color-accent-primary-15)',
+                            color: tokens.colors.accentPrimary,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {model.model}
+                        </span>
+                      ) : null}
+                    </td>
+                  </>
+                )}
                 <td
                   style={{
                     padding: '16px',
                     fontSize: '14px',
                     fontWeight: '500',
                     color: tokens.colors.textSecondary,
-                    borderBottom:
-                      idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+                    borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
-                  {session.messages}
+                  {isSummary ? session.messages : model?.messages}
                 </td>
                 <td
                   style={{
                     padding: '16px',
                     fontSize: '14px',
                     color: tokens.colors.textSecondary,
-                    borderBottom:
-                      idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+                    borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
-                  {formatNumber(session.tokens)}
+                  {formatNumber(isSummary ? session.tokens : model?.tokens ?? 0)}
                 </td>
                 <td
                   style={{
@@ -187,36 +219,34 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     fontSize: '14px',
                     fontWeight: '600',
                     color: tokens.colors.semanticSuccess,
-                    borderBottom:
-                      idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+                    borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
-                  {formatCurrency(session.cost)}
+                  {formatCurrency(isSummary ? session.cost : model?.cost ?? 0)}
                 </td>
                 <td
                   style={{
                     padding: '16px',
                     fontSize: '13px',
                     color: tokens.colors.textMuted,
-                    borderBottom:
-                      idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+                    borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
-                  {session.date}
+                  {isSummary ? session.date : model?.date}
                 </td>
                 <td
                   style={{
                     padding: '16px',
                     fontSize: '13px',
                     color: tokens.colors.textMuted,
-                    borderBottom:
-                      idx < visibleSessions.length - 1 ? `1px solid ${tokens.colors.surfaceBorder}` : 'none',
+                    borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
-                  {session.duration}
+                  {isSummary ? session.duration : model?.duration}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
