@@ -4,9 +4,10 @@ set -euo pipefail
 # Verbose logs to stderr: VERBOSE=1 bash cc_usage.sh
 
 OUTDIR="${OUTDIR:-/tmp/claude-stats}"
-CLAUDE_CMD="${CLAUDE_CMD:-claude --no-chrome}"
+CLAUDE_CMD="${CLAUDE_CMD:-claude --no-chrome --setting-sources local}"
 WIDTH="${WIDTH:-140}"
 HEIGHT="${HEIGHT:-50}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 TIMEOUT_READY="${TIMEOUT_READY:-45}"
 TIMEOUT_STATUS="${TIMEOUT_STATUS:-45}"
@@ -14,6 +15,9 @@ TIMEOUT_USAGE="${TIMEOUT_USAGE:-45}"
 ATTEMPTS="${ATTEMPTS:-3}"
 
 VERBOSE="${VERBOSE:-0}"
+CC_USAGE_LOG_DB="${CC_USAGE_LOG_DB:-1}"
+CC_USAGE_DB_PATH="${CC_USAGE_DB_PATH:-/home/xai/DEV/command-center/tmp/cc_usage.db}"
+CC_USAGE_LOGGER="${CC_USAGE_LOGGER:-$SCRIPT_DIR/cc_usage_logger.py}"
 
 mkdir -p "$OUTDIR"
 ts="$(date +%Y%m%d-%H%M%S)"
@@ -164,7 +168,9 @@ tmux send-keys -t "$TARGET" C-d
 sleep 0.1
 tmux send-keys -t "$TARGET" C-d
 
-awk -v logfile="$logfile" -v email="$email" '
+set +e
+json_output="$(
+  awk -v logfile="$logfile" -v email="$email" '
 function trim(s){ sub(/^[[:space:]]+/,"",s); sub(/[[:space:]]+$/,"",s); return s }
 BEGIN{ mode=""; s_used=""; w_used=""; w_reset="" }
 {
@@ -189,3 +195,20 @@ END{
     s_used, w_used, w_reset, email, logfile)
 }
 ' "$logfile"
+)"
+awk_status=$?
+set -e
+
+printf '%s\n' "$json_output"
+
+if (( awk_status != 0 )); then
+  exit "$awk_status"
+fi
+
+if [[ "$CC_USAGE_LOG_DB" != "0" ]]; then
+  logger_cmd=(python3 "$CC_USAGE_LOGGER" --db "$CC_USAGE_DB_PATH")
+  if [[ "$VERBOSE" == "1" ]]; then
+    logger_cmd+=(--verbose)
+  fi
+  printf '%s\n' "$json_output" | "${logger_cmd[@]}"
+fi
