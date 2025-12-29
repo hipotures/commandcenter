@@ -99,16 +99,21 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                   key={header}
                   style={{
                     textAlign: header === 'Cost' ? 'right' : 'left',
-                    padding: '12px 16px',
+                    padding:
+                      header === 'Session ID'
+                        ? '12px 6px 12px 16px'
+                        : header === 'Model'
+                          ? '12px 16px 12px 6px'
+                          : '12px 16px',
                     fontSize: '11px',
                     fontWeight: '600',
-                    color: tokens.colors.textMuted,
+                    color: header === 'Model' ? 'transparent' : tokens.colors.textMuted,
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
                     borderBottom: `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
-                  {header}
+                  {header === 'Model' ? '\u00A0' : header}
                 </th>
               ))}
             </tr>
@@ -142,7 +147,7 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                   <td
                     colSpan={2}
                     style={{
-                      padding: '16px',
+                      padding: '16px 6px 16px 16px',
                       fontSize: '13px',
                       fontFamily: "'DM Mono', monospace",
                       fontWeight: '600',
@@ -163,42 +168,31 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     </span>
                   </td>
                 ) : (
-                  <>
-                    <td
-                      style={{
-                        padding: '16px',
-                        fontSize: '13px',
-                        fontFamily: "'DM Mono', monospace",
-                        fontWeight: '400',
-                        color: tokens.colors.textSecondary,
-                        borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
-                      }}
-                    />
-                    <td
-                      style={{
-                        padding: '16px',
-                        borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
-                      }}
-                    >
-                      {model ? (
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            padding: '4px 10px',
-                            borderRadius: '12px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            background: 'var(--color-accent-primary-15)',
-                            color: tokens.colors.accentPrimary,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {model.model}
-                        </span>
-                      ) : null}
-                    </td>
-                  </>
+                  <td
+                    colSpan={2}
+                    style={{
+                      padding: '16px 16px 16px 36px',
+                      borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
+                    }}
+                  >
+                    {model ? (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '4px 10px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          background: 'var(--color-accent-primary-15)',
+                          color: tokens.colors.accentPrimary,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {model.model}
+                      </span>
+                    ) : null}
+                  </td>
                 )}
                 <td
                   style={{
