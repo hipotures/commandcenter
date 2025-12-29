@@ -2,17 +2,16 @@
 
 ### Schema Version Management
 
-**Current Version:** 3
 **Migration System:** Version-based with automated migrations
 
 **Version History:**
-- **v1**: Initial schema (file_tracks, message_entries, hourly_aggregates, model_aggregates)
-- **v2**: Added limit_events table for session limit tracking
-- **v3**: Added project_id column to message_entries for project-level filtering
+- Initial schema (file_tracks, message_entries, hourly_aggregates, model_aggregates)
+- Added limit_events table for session limit tracking
+- Added project_id column to message_entries for project-level filtering
 
 ```python
 # Schema versioning
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = LATEST_SCHEMA_VERSION
 
 def init_database(conn):
     create_schema_version_table(conn)
@@ -26,7 +25,7 @@ def init_database(conn):
 ```
 
 **Migration Notes:**
-- v2 → v3: Run `--rebuild-db` to populate project_id from file paths
+- When adding the project_id column, run `--rebuild-db` to populate from file paths
 - All migrations are idempotent and safe to re-run
 
 ### Table Definitions
@@ -43,7 +42,7 @@ CREATE TABLE schema_version (
 ```
 
 **Fields:**
-- `version`: Schema version number (1, 2, 3, ...)
+- `version`: Schema version identifier (monotonic integer)
 - `applied_at`: UTC timestamp of migration
 
 **Usage:** Query before running migrations to determine current version.
@@ -107,14 +106,14 @@ CREATE TABLE message_entries (
     cache_write_tokens INTEGER DEFAULT 0,
     total_tokens INTEGER DEFAULT 0,
     source_file TEXT NOT NULL,
-    project_id TEXT DEFAULT 'unknown'  -- Added in v3
+    project_id TEXT DEFAULT 'unknown'
 );
 
 CREATE INDEX idx_entries_year ON message_entries(year);
 CREATE INDEX idx_entries_date ON message_entries(date);
 CREATE INDEX idx_entries_session ON message_entries(session_id);
 CREATE INDEX idx_entries_model ON message_entries(model);
-CREATE INDEX idx_entries_project_id ON message_entries(project_id);  -- Added in v3
+CREATE INDEX idx_entries_project_id ON message_entries(project_id);
 ```
 
 **Fields:**
@@ -128,14 +127,14 @@ CREATE INDEX idx_entries_project_id ON message_entries(project_id);  -- Added in
 - `cost_usd`: Cost in USD (can be NULL)
 - `*_tokens`: Token counts from usage object
 - `source_file`: Originating JSONL file (for debugging)
-- `project_id`: Derived from file path (e.g., "-home-user-dev-myproject") - **Added in v3**
+- `project_id`: Derived from file path (e.g., "-home-user-dev-myproject")
 
 **Indexes:**
 - `idx_entries_year`: Enables fast year filtering
 - `idx_entries_date`: Enables fast date range queries
 - `idx_entries_session`: Groups by session for session analysis
 - `idx_entries_model`: Enables fast model filtering
-- `idx_entries_project_id`: Enables fast project filtering - **Added in v3**
+- `idx_entries_project_id`: Enables fast project filtering
 
 **Index Selection Rationale:**
 - Year queries are common (usage reports)
@@ -259,7 +258,7 @@ LIMIT 3;
 
 #### 6. `limit_events`
 
-**Purpose:** Track session limit events (5-hour limits, spending caps, context limits) - **Added in v2**
+**Purpose:** Track session limit events (5-hour limits, spending caps, context limits)
 
 ```sql
 CREATE TABLE limit_events (
@@ -335,17 +334,17 @@ WHERE limit_type = '5-hour'
 | message_entries | idx_entries_date | date | Date range queries |
 | message_entries | idx_entries_session | session_id | Session grouping |
 | message_entries | idx_entries_model | model | Model filtering |
-| message_entries | idx_entries_project_id | project_id | Project filtering (v3) |
+| message_entries | idx_entries_project_id | project_id | Project filtering |
 | hourly_aggregates | PRIMARY | datetime_hour | Unique hour lookup |
 | hourly_aggregates | idx_hourly_year | year | Year filtering |
 | hourly_aggregates | idx_hourly_date | date | Date filtering |
 | hourly_aggregates | idx_hourly_hour | hour | Hour-of-day analysis |
 | model_aggregates | PRIMARY | (model, year) | Unique model/year |
 | model_aggregates | idx_model_year | year | Year filtering |
-| limit_events | PRIMARY | leaf_uuid | Deduplication (v2) |
-| limit_events | idx_limit_events_year_date | (year, date) | Date range queries (v2) |
-| limit_events | idx_limit_events_type | (limit_type, year) | Type filtering (v2) |
-| limit_events | idx_limit_events_occurred | occurred_at_local | Chronological ordering (v2) |
+| limit_events | PRIMARY | leaf_uuid | Deduplication |
+| limit_events | idx_limit_events_year_date | (year, date) | Date range queries |
+| limit_events | idx_limit_events_type | (limit_type, year) | Type filtering |
+| limit_events | idx_limit_events_occurred | occurred_at_local | Chronological ordering |
 
 **Index Cardinality:**
 - High cardinality (good for indexing): `entry_hash`, `session_id`, `date`
@@ -371,4 +370,3 @@ WHERE limit_type = '5-hour'
 - **Durability:** Changes persisted to disk
 
 ---
-

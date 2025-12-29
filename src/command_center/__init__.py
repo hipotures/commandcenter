@@ -9,6 +9,6 @@ try:
     __version__ = version("command-center")
 except Exception:
     # Fallback for development mode
-    __version__ = "2.2.0-dev"
+    __version__ = "2.5.0-dev"
 
 __author__ = "Claude Code"

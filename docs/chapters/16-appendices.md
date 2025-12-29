@@ -190,14 +190,13 @@ Future schema changes will use version-based migrations:
 
 ```python
 def run_migrations(conn, from_version, to_version):
-    if from_version < 2 and to_version >= 2:
-        migrate_to_v2(conn)  # Add new columns/tables
-        set_schema_version(conn, 2)
+    if from_version < LIMIT_EVENTS_VERSION and to_version >= LIMIT_EVENTS_VERSION:
+        migrate_limit_events(conn)  # Add new columns/tables
+        set_schema_version(conn, LIMIT_EVENTS_VERSION)
 
-    if from_version < 3 and to_version >= 3:
-        migrate_to_v3(conn)  # Refactor indexes
-        set_schema_version(conn, 3)
+    if from_version < PROJECT_TRACKING_VERSION and to_version >= PROJECT_TRACKING_VERSION:
+        migrate_project_tracking(conn)  # Refactor indexes
+        set_schema_version(conn, PROJECT_TRACKING_VERSION)
 ```
 
 ---
-

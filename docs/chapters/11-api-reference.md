@@ -330,7 +330,7 @@ display_png_in_terminal(png_bytes)
 
 ---
 
-### Module: `command_center.tauri_api` (NEW in v2.0+)
+### Module: `command_center.tauri_api`
 
 **Purpose:** JSON API bridge for Tauri desktop application
 
@@ -345,7 +345,7 @@ python -m command_center.tauri_api dashboard \
   --to 2025-12-31 \
   --refresh 0 \
   --granularity month \
-  --project-id PROJECT_ID  # Optional (v3)
+  --project-id PROJECT_ID  # Optional
 ```
 
 **Returns:**
@@ -363,7 +363,7 @@ python -m command_center.tauri_api dashboard \
 ```bash
 python -m command_center.tauri_api day \
   --date 2025-06-15 \
-  --project-id PROJECT_ID  # Optional (v3)
+  --project-id PROJECT_ID  # Optional
 ```
 
 **Returns:**
@@ -379,7 +379,7 @@ python -m command_center.tauri_api model \
   --model claude-sonnet-4-20250514 \
   --from 2025-01-01 \
   --to 2025-12-31 \
-  --project-id PROJECT_ID  # Optional (v3)
+  --project-id PROJECT_ID  # Optional
 ```
 
 **Returns:**
@@ -394,7 +394,7 @@ python -m command_center.tauri_api model \
 ```bash
 python -m command_center.tauri_api session \
   --id SESSION_UUID \
-  --project-id PROJECT_ID  # Optional (v3)
+  --project-id PROJECT_ID  # Optional
 ```
 
 **Returns:**
@@ -445,7 +445,7 @@ python -m command_center.tauri_api update-project \
 **Returns:**
 - `project`: Updated project metadata
 
-#### Query Functions (NEW in v2.0+)
+#### Query Functions
 
 **`query_timeline_data(conn, date_from, date_to, granularity, project_id=None)`**
 
@@ -479,7 +479,7 @@ Returns model-specific analytics.
 
 Returns full session message list.
 
-**Project Filtering (v3):**
+**Project Filtering:**
 All query functions support optional `project_id` parameter for filtering by project:
 ```python
 query_totals(conn, "2025-01-01", "2025-12-31", project_id="-home-user-dev-myproject")

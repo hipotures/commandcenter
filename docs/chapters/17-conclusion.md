@@ -11,7 +11,6 @@ For questions, issues, or contributions, refer to the [project repository on Git
 
 ---
 
-**Document Version:** 1.0
 **Generated:** 2025-12-27
 **Total Pages:** ~80 (equivalent)
 **Word Count:** ~15,000 words

@@ -1,6 +1,6 @@
 [package]
 name = "command-center"
-version = "1.0.0"
+version = "2.5.0"
 description = "Command Center - Claude Code Usage Dashboard"
 authors = ["xai"]
 license = ""
