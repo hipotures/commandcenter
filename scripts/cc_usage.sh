@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# No verbose, only json: VERBOSE=0 bash cc_usage.sh
+
 OUTDIR="${OUTDIR:-/tmp/claude-stats}"
 CLAUDE_CMD="${CLAUDE_CMD:-claude --no-chrome}"
 WIDTH="${WIDTH:-140}"
 HEIGHT="${HEIGHT:-50}"
 
 TIMEOUT_READY="${TIMEOUT_READY:-45}"
+TIMEOUT_STATUS="${TIMEOUT_STATUS:-45}"
 TIMEOUT_USAGE="${TIMEOUT_USAGE:-45}"
 ATTEMPTS="${ATTEMPTS:-3}"
 
@@ -17,6 +20,7 @@ ts="$(date +%Y%m%d-%H%M%S)"
 SESSION="claude_usage_${ts}_$$"
 TARGET="${SESSION}:0.0"
 logfile="$OUTDIR/usage-$ts.txt"
+status_logfile="$OUTDIR/status-$ts.txt"
 
 log() {
   [[ "$VERBOSE" == "1" ]] || return 0
@@ -49,6 +53,69 @@ while (( SECONDS - start < TIMEOUT_READY )); do
   fi
   sleep 0.2
 done
+
+ok_status=0
+log "Próby wejścia w /status: ATTEMPTS=$ATTEMPTS"
+
+for ((i=1; i<=ATTEMPTS; i++)); do
+  log "Attempt $i: wysyłam /status (Enter x2)"
+  tmux send-keys -t "$TARGET" "/status" Enter
+  sleep 0.3
+  tmux send-keys -t "$TARGET" Enter
+
+  start=$SECONDS
+  while (( SECONDS - start < TIMEOUT_STATUS )); do
+    pane="$(tmux capture-pane -p -J -t "$TARGET" 2>/dev/null || true | tr $'\302\240' ' ')"
+
+    # jeśli jesteśmy na liście slash-komend, Enter wybiera /status
+    if grep -qE '^[[:space:]]*/status[[:space:]]+' <<<"$pane"; then
+      tmux send-keys -t "$TARGET" Enter
+      sleep 0.3
+    fi
+
+    if grep -qE '^[[:space:]]*Email:[[:space:]]+' <<<"$pane"; then
+      ok_status=1
+      log "Ekran Status wykryty."
+      break
+    fi
+
+    sleep 0.2
+  done
+
+  (( ok_status == 1 )) && break
+done
+
+tmux capture-pane -p -J -t "$TARGET" > "$status_logfile"
+log "Zapisano snapshot status: $status_logfile"
+
+if (( ok_status == 0 )); then
+  printf '{"error":"failed_to_capture_status_screen","status_logfile":"%s","tmux_session":"%s"}\n' "$status_logfile" "$SESSION"
+  exit 1
+fi
+
+email="$(
+  awk '
+  function trim(s){ sub(/^[[:space:]]+/,"",s); sub(/[[:space:]]+$/,"",s); return s }
+  {
+    l=$0
+    gsub(/\r/,"",l)
+    if (l ~ /^[[:space:]]*Email:[[:space:]]*/) {
+      sub(/^[[:space:]]*Email:[[:space:]]*/,"",l)
+      l=trim(l)
+      if (l != "") { print l; exit }
+    }
+  }
+  ' "$status_logfile"
+)"
+
+if [[ -z "$email" ]]; then
+  printf '{"error":"failed_to_parse_email","status_logfile":"%s","tmux_session":"%s"}\n' "$status_logfile" "$SESSION"
+  exit 1
+fi
+
+log "Zamykam Status (Esc)"
+tmux send-keys -t "$TARGET" Escape
+sleep 0.2
 
 ok=0
 log "Próby wejścia w /usage: ATTEMPTS=$ATTEMPTS"
@@ -98,7 +165,7 @@ sleep 0.1
 tmux send-keys -t "$TARGET" C-d
 
 # PARSER (ten sam co w cc_usage11.sh – tylko domknięty i z plikiem wejściowym)
-awk -v logfile="$logfile" '
+awk -v logfile="$logfile" -v email="$email" '
 function trim(s){ sub(/^[[:space:]]+/,"",s); sub(/[[:space:]]+$/,"",s); return s }
 BEGIN{ mode=""; s_used=""; w_used=""; w_reset="" }
 {
@@ -115,12 +182,11 @@ BEGIN{ mode=""; s_used=""; w_used=""; w_reset="" }
 }
 END{
   if(s_used=="" || w_used==""){
-    printf("{\"error\":\"failed_to_parse_usage\",\"current_session_used\":\"%s\",\"current_week_used\":\"%s\",\"current_week_resets\":\"%s\",\"logfile\":\"%s\"}\n",
-      s_used, w_used, w_reset, logfile)
+    printf("{\"error\":\"failed_to_parse_usage\",\"current_session_used\":\"%s\",\"current_week_used\":\"%s\",\"current_week_resets\":\"%s\",\"email\":\"%s\",\"logfile\":\"%s\"}\n",
+      s_used, w_used, w_reset, email, logfile)
     exit 1
   }
-  printf("{\"current_session\":{\"used\":\"%s\"},\"current_week_all_models\":{\"used\":\"%s\",\"resets\":\"%s\"},\"logfile\":\"%s\"}\n",
-    s_used, w_used, w_reset, logfile)
+  printf("{\"current_session\":{\"used\":\"%s\"},\"current_week_all_models\":{\"used\":\"%s\",\"resets\":\"%s\"},\"email\":\"%s\",\"logfile\":\"%s\"}\n",
+    s_used, w_used, w_reset, email, logfile)
 }
 ' "$logfile"
-
