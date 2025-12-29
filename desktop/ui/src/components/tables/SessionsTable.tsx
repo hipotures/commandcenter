@@ -91,23 +91,14 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
           msOverflowStyle: isExporting ? 'none' : undefined,
         }}
       >
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-          <colgroup>
-            <col style={{ width: '14.2857%' }} />
-            <col style={{ width: '14.2857%' }} />
-            <col style={{ width: '14.2857%' }} />
-            <col style={{ width: '14.2857%' }} />
-            <col style={{ width: '14.2857%' }} />
-            <col style={{ width: '14.2857%' }} />
-            <col style={{ width: '14.2857%' }} />
-          </colgroup>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
           <thead>
             <tr>
               {headers.map((header) => (
                 <th
                   key={header}
                   style={{
-                    textAlign: ['Date', 'Duration', 'Messages', 'Tokens', 'Cost'].includes(header) ? 'right' : 'left',
+                    textAlign: header === 'Cost' ? 'right' : 'left',
                     padding: '12px 16px',
                     fontSize: '11px',
                     fontWeight: '600',
@@ -215,7 +206,6 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     fontSize: '13px',
                     color: tokens.colors.textMuted,
                     whiteSpace: 'nowrap',
-                    textAlign: 'right',
                     borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
@@ -226,7 +216,6 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     padding: '16px',
                     fontSize: '13px',
                     color: tokens.colors.textMuted,
-                    textAlign: 'right',
                     borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
@@ -238,7 +227,6 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     fontSize: '14px',
                     fontWeight: '500',
                     color: tokens.colors.textSecondary,
-                    textAlign: 'right',
                     borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
@@ -249,7 +237,6 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     padding: '16px',
                     fontSize: '14px',
                     color: tokens.colors.textSecondary,
-                    textAlign: 'right',
                     borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
