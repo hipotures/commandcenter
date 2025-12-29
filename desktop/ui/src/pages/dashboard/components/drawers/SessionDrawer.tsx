@@ -1,9 +1,9 @@
 /**
  * Session Details Drawer - shows detailed stats for a specific session
  */
-import { useSessionDetails } from '../../state/queries';
-import { useAppStore } from '../../state/store';
-import { Drawer } from './Drawer';
+import { useSessionDetails } from '../../../../state/queries';
+import { useAppStore } from '../../../../state/store';
+import { Drawer } from '../../../../components/drawers/Drawer';
 
 interface Props {
   sessionId: string | null;

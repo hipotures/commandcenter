@@ -2,8 +2,8 @@
  * Project Settings - manage project visibility and metadata
  */
 import { useMemo, useState } from 'react';
-import { useProjects, useUpdateProject } from '../../state/queries';
-import type { Project } from '../../types/api';
+import { useProjects, useUpdateProject } from '../../../../state/queries';
+import type { Project } from '../../../../types/api';
 import { Edit2, Check, X } from 'lucide-react';
 
 export function ProjectSettings() {

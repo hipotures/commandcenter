@@ -1,31 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
-import { Folder, ChevronDown } from 'lucide-react';
-import { useProjects } from '../state/queries';
-import { useAppStore } from '../state/store';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Folder } from 'lucide-react';
+import { getProjectDisplayName } from '../../../lib/format';
+import { useProjects } from '../../../state/queries';
+import { useAppStore } from '../../../state/store';
+import { tokens } from '../../../styles/tokens';
 
-const tokens = {
-  colors: {
-    background: 'var(--color-background)',
-    surface: 'var(--color-surface)',
-    surfaceBorder: 'var(--color-border)',
-    textPrimary: 'var(--color-text-primary)',
-    textSecondary: 'var(--color-text-secondary)',
-    textMuted: 'var(--color-text-muted)',
-    accentPrimary: 'var(--color-accent-primary)',
-  },
-  shadows: {
-    lg: 'var(--shadow-lg)',
-  },
-};
-
-export const ProjectSelector = () => {
+export function ProjectSelector() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { data: projectsData } = useProjects();
   const { selectedProjectId, setSelectedProjectId } = useAppStore();
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -37,36 +23,24 @@ export const ProjectSelector = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter visible projects only
-  const visibleProjects = projectsData?.projects.filter(p => p.visible) || [];
+  const visibleProjects = projectsData?.projects.filter((project) => project.visible) || [];
 
-  // Debug logging
   console.log('[ProjectSelector] Projects data:', projectsData);
   console.log('[ProjectSelector] Visible projects:', visibleProjects);
   console.log('[ProjectSelector] Selected project ID:', selectedProjectId);
 
-  // Get display name
-  const getDisplayName = (project: any): string => {
-    if (project.name) return project.name;
-    // Extract last directory: -home-xai-DEV-command-center → command-center
-    const parts = project.project_id.split('-').filter(Boolean);
-    return parts[parts.length - 1] || project.project_id;
-  };
-
-  // Find selected project
-  const selectedProject = visibleProjects.find(p => p.project_id === selectedProjectId);
+  const selectedProject = visibleProjects.find((project) => project.project_id === selectedProjectId);
   const allProjectsLabel = 'All Projects';
   const allProjectsTooltip = 'Select project filter';
-  const displayText = selectedProject ? getDisplayName(selectedProject) : allProjectsLabel;
+  const displayText = selectedProject ? getProjectDisplayName(selectedProject) : allProjectsLabel;
 
   console.log('[ProjectSelector] Display text:', displayText);
 
   return (
     <div ref={dropdownRef} style={{ position: 'relative' }}>
-      {/* Trigger Button */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        title={selectedProject ? getDisplayName(selectedProject) : allProjectsTooltip}
+        title={selectedProject ? getProjectDisplayName(selectedProject) : allProjectsTooltip}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -78,19 +52,21 @@ export const ProjectSelector = () => {
           cursor: 'pointer',
           transition: 'all 0.2s ease',
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = tokens.colors.surface;
+        onMouseEnter={(event) => {
+          event.currentTarget.style.background = tokens.colors.surface;
         }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = tokens.colors.background;
+        onMouseLeave={(event) => {
+          event.currentTarget.style.background = tokens.colors.background;
         }}
       >
         <Folder size={16} color={tokens.colors.accentPrimary} />
-        <span style={{
-          fontSize: '14px',
-          color: tokens.colors.textSecondary,
-          minWidth: '100px',
-        }}>
+        <span
+          style={{
+            fontSize: '14px',
+            color: tokens.colors.textSecondary,
+            minWidth: '100px',
+          }}
+        >
           {displayText}
         </span>
         <ChevronDown
@@ -103,7 +79,6 @@ export const ProjectSelector = () => {
         />
       </div>
 
-      {/* Dropdown */}
       {isOpen && (
         <div
           style={{
@@ -120,7 +95,6 @@ export const ProjectSelector = () => {
             overflowY: 'auto',
           }}
         >
-          {/* "All Projects" option */}
           <div
             onClick={() => {
               console.log('[ProjectSelector] Setting to: All (null)');
@@ -139,17 +113,16 @@ export const ProjectSelector = () => {
               borderBottom: `1px solid ${tokens.colors.surfaceBorder}`,
               transition: 'all 0.2s ease',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = tokens.colors.background;
+            onMouseEnter={(event) => {
+              event.currentTarget.style.background = tokens.colors.background;
             }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
+            onMouseLeave={(event) => {
+              event.currentTarget.style.background = 'transparent';
             }}
           >
             {allProjectsLabel}
           </div>
 
-          {/* Project options */}
           {visibleProjects.map((project) => (
             <div
               key={project.project_id}
@@ -168,25 +141,26 @@ export const ProjectSelector = () => {
                 fontWeight: selectedProjectId === project.project_id ? '600' : '400',
                 transition: 'all 0.2s ease',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = tokens.colors.background;
+              onMouseEnter={(event) => {
+                event.currentTarget.style.background = tokens.colors.background;
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
+              onMouseLeave={(event) => {
+                event.currentTarget.style.background = 'transparent';
               }}
             >
-              {getDisplayName(project)}
+              {getProjectDisplayName(project)}
             </div>
           ))}
 
-          {/* Empty state */}
           {visibleProjects.length === 0 && (
-            <div style={{
-              padding: '20px',
-              textAlign: 'center',
-              fontSize: '13px',
-              color: tokens.colors.textMuted,
-            }}>
+            <div
+              style={{
+                padding: '20px',
+                textAlign: 'center',
+                fontSize: '13px',
+                color: tokens.colors.textMuted,
+              }}
+            >
               No projects found
             </div>
           )}
@@ -194,4 +168,4 @@ export const ProjectSelector = () => {
       )}
     </div>
   );
-};
+}

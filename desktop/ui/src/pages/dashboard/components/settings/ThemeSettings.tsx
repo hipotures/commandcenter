@@ -1,7 +1,7 @@
 /**
  * Theme Settings - dark/light mode toggle and future color customization
  */
-import { useAppStore } from '../../state/store';
+import { useAppStore } from '../../../../state/store';
 import { Sun, Moon } from 'lucide-react';
 
 export function ThemeSettings() {

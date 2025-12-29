@@ -1,0 +1,30 @@
+export const tokens = {
+  colors: {
+    background: 'var(--color-background)',
+    surface: 'var(--color-surface)',
+    surfaceBorder: 'var(--color-border)',
+    textPrimary: 'var(--color-text-primary)',
+    textSecondary: 'var(--color-text-secondary)',
+    textTertiary: 'var(--color-text-tertiary)',
+    textMuted: 'var(--color-text-muted)',
+    accentPrimary: 'var(--color-accent-primary)',
+    accentSecondary: 'var(--color-accent-hover)',
+    semanticSuccess: 'var(--color-success)',
+    semanticWarning: 'var(--color-warning)',
+    semanticError: 'var(--color-error)',
+    heatmap: [
+      'var(--color-heatmap-0)',
+      'var(--color-heatmap-1)',
+      'var(--color-heatmap-2)',
+      'var(--color-heatmap-3)',
+      'var(--color-heatmap-4)',
+      'var(--color-heatmap-5)',
+      'var(--color-heatmap-6)',
+    ],
+  },
+  shadows: {
+    sm: 'var(--shadow-sm)',
+    md: 'var(--shadow-md)',
+    lg: 'var(--shadow-lg)',
+  },
+};

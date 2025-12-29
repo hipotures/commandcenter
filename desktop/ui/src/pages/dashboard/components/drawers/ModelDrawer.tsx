@@ -1,9 +1,9 @@
 /**
  * Model Details Drawer - shows detailed stats for a specific model
  */
-import { useModelDetails } from '../../state/queries';
-import { useAppStore } from '../../state/store';
-import { Drawer } from './Drawer';
+import { useModelDetails } from '../../../../state/queries';
+import { useAppStore } from '../../../../state/store';
+import { Drawer } from '../../../../components/drawers/Drawer';
 
 interface Props {
   model: string | null;

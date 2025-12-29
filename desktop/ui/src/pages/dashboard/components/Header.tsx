@@ -2,7 +2,7 @@
  * Header with controls - date picker, granularity, refresh, dark mode
  */
 import { Moon, Sun, RefreshCw } from 'lucide-react';
-import { useAppStore } from '../state/store';
+import { useAppStore } from '../../../state/store';
 
 interface Props {
   onRefresh: () => void;

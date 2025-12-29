@@ -2,9 +2,10 @@
  * Settings Drawer - configuration panel with tabs
  */
 import { useState } from 'react';
-import { Drawer } from './Drawer';
-import { ProjectSettings } from '../settings/ProjectSettings';
-import { ThemeSettings } from '../settings/ThemeSettings';
+import type { ReactNode } from 'react';
+import { Drawer } from '../../../components/drawers/Drawer';
+import { ProjectSettings } from './settings/ProjectSettings';
+import { ThemeSettings } from './settings/ThemeSettings';
 
 interface Props {
   isOpen: boolean;
@@ -58,7 +59,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
 interface TabButtonProps {
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
   role?: string;
   'aria-selected'?: boolean;
 }

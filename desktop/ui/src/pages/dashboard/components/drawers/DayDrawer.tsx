@@ -1,10 +1,10 @@
 /**
  * Day Details Drawer - shows detailed stats for a specific day
  */
-import { useDayDetails } from '../../state/queries';
-import { useAppStore } from '../../state/store';
-import { Drawer } from './Drawer';
-import { HourlyChart } from '../charts/HourlyChart';
+import { useDayDetails } from '../../../../state/queries';
+import { useAppStore } from '../../../../state/store';
+import { Drawer } from '../../../../components/drawers/Drawer';
+import { HourlyChart } from '../../../../components/charts/HourlyChart';
 
 interface Props {
   date: string | null;
