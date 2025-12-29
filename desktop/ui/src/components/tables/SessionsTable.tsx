@@ -105,7 +105,7 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
           </colgroup>
           <thead>
             <tr>
-              {['Session ID', 'Model', 'Messages', 'Tokens', 'Cost', 'Date', 'Duration'].map((header) => (
+              {['Session ID', 'Model', 'Date', 'Duration', 'Messages', 'Tokens', 'Cost'].map((header) => (
                 <th
                   key={header}
                   style={{
@@ -214,6 +214,26 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                 <td
                   style={{
                     padding: '16px',
+                    fontSize: '13px',
+                    color: tokens.colors.textMuted,
+                    borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
+                  }}
+                >
+                  {isSummary ? session.date : ''}
+                </td>
+                <td
+                  style={{
+                    padding: '16px',
+                    fontSize: '13px',
+                    color: tokens.colors.textMuted,
+                    borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
+                  }}
+                >
+                  {isSummary ? session.duration : ''}
+                </td>
+                <td
+                  style={{
+                    padding: '16px',
                     fontSize: '14px',
                     fontWeight: '500',
                     color: tokens.colors.textSecondary,
@@ -243,28 +263,8 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                 >
                   {formatCurrency(isSummary ? session.cost : model?.cost ?? 0)}
                 </td>
-                <td
-                  style={{
-                    padding: '16px',
-                    fontSize: '13px',
-                    color: tokens.colors.textMuted,
-                    borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
-                  }}
-                >
-                  {isSummary ? session.date : model?.date}
-                </td>
-                <td
-                  style={{
-                    padding: '16px',
-                    fontSize: '13px',
-                    color: tokens.colors.textMuted,
-                    borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
-                  }}
-                >
-                  {isSummary ? session.duration : model?.duration}
-                </td>
               </tr>
-              );
+            );
             })}
           </tbody>
         </table>
