@@ -16,7 +16,7 @@ ATTEMPTS="${ATTEMPTS:-3}"
 
 VERBOSE="${VERBOSE:-0}"
 CC_USAGE_LOG_DB="${CC_USAGE_LOG_DB:-1}"
-CC_USAGE_DB_PATH="${CC_USAGE_DB_PATH:-/home/xai/DEV/command-center/tmp/cc_usage.db}"
+CC_USAGE_DB_PATH="${CC_USAGE_DB_PATH:-$HOME/.claude/db/cc_usage.db}"
 CC_USAGE_LOGGER="${CC_USAGE_LOGGER:-$SCRIPT_DIR/cc_usage_logger.py}"
 
 mkdir -p "$OUTDIR"

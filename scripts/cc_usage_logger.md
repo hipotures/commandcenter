@@ -31,6 +31,8 @@ Indexes:
 
 Default behavior is enabled from `scripts/cc_usage.sh`.
 
+Default database path: `$HOME/.claude/db/cc_usage.db`
+
 Environment variables:
 
 - `CC_USAGE_LOG_DB=0` disables logging
@@ -41,7 +43,7 @@ Environment variables:
 Example:
 
 ```bash
-CC_USAGE_DB_PATH=/home/xai/DEV/command-center/tmp/cc_usage.db \
+CC_USAGE_DB_PATH=$HOME/.claude/db/cc_usage.db \
 VERBOSE=1 \
 ./scripts/cc_usage.sh
 ```
@@ -50,7 +52,7 @@ Direct use of the logger:
 
 ```bash
 echo '{"current_session":{"used":"0% used"},"current_week_all_models":{"used":"100% used","resets":"Jan 1, 2026, 9:59am (Europe/Warsaw)"},"email":"user@example.com","logfile":"/tmp/claude-stats/usage-20251229-224107.txt"}' \
-  | python3 ./scripts/cc_usage_logger.py --db /home/xai/DEV/command-center/tmp/cc_usage.db --verbose
+  | python3 ./scripts/cc_usage_logger.py --db $HOME/.claude/db/cc_usage.db --verbose
 ```
 
 You can also pass input directly:

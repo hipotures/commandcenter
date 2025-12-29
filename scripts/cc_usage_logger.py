@@ -88,7 +88,7 @@ def main():
         "--db",
         default=os.environ.get(
             "CC_USAGE_DB_PATH",
-            "/home/xai/DEV/command-center/tmp/cc_usage.db",
+            os.path.join(os.path.expanduser("~"), ".claude", "db", "cc_usage.db"),
         ),
         help="SQLite database path",
     )
