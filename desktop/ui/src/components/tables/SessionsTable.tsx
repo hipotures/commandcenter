@@ -8,12 +8,10 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
   const [sessionLimit, setSessionLimit] = useState('10');
   const visibleSessions = sessions.slice(0, Number(sessionLimit));
   const rows = visibleSessions.flatMap((session) => {
-    const modelRows =
-      session.models.length > 1
-        ? session.models.map((model) => ({ type: 'model' as const, session, model }))
-        : [];
+    const modelRows = session.models.map((model) => ({ type: 'model' as const, session, model }));
     return [{ type: 'summary' as const, session }, ...modelRows];
   });
+  const headers = ['Session ID', 'Model', 'Date', 'Duration', 'Messages', 'Tokens', 'Cost'];
 
   return (
     <div
@@ -105,11 +103,11 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
           </colgroup>
           <thead>
             <tr>
-              {['Session ID', 'Model', 'Date', 'Duration', 'Messages', 'Tokens', 'Cost'].map((header) => (
+              {headers.map((header) => (
                 <th
                   key={header}
                   style={{
-                    textAlign: 'left',
+                    textAlign: ['Date', 'Duration', 'Messages', 'Tokens', 'Cost'].includes(header) ? 'right' : 'left',
                     padding: '12px 16px',
                     fontSize: '11px',
                     fontWeight: '600',
@@ -216,6 +214,8 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     padding: '16px',
                     fontSize: '13px',
                     color: tokens.colors.textMuted,
+                    whiteSpace: 'nowrap',
+                    textAlign: 'right',
                     borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
@@ -226,6 +226,7 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     padding: '16px',
                     fontSize: '13px',
                     color: tokens.colors.textMuted,
+                    textAlign: 'right',
                     borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
@@ -237,6 +238,7 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     fontSize: '14px',
                     fontWeight: '500',
                     color: tokens.colors.textSecondary,
+                    textAlign: 'right',
                     borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
@@ -247,6 +249,7 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     padding: '16px',
                     fontSize: '14px',
                     color: tokens.colors.textSecondary,
+                    textAlign: 'right',
                     borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
@@ -258,6 +261,7 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                     fontSize: '14px',
                     fontWeight: '600',
                     color: tokens.colors.semanticSuccess,
+                    textAlign: 'right',
                     borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                   }}
                 >
