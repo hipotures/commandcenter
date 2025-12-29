@@ -18,3 +18,22 @@ export const getProjectDisplayName = (project: { name?: string | null; project_i
   const parts = project.project_id.split('-').filter(Boolean);
   return parts[parts.length - 1] || project.project_id;
 };
+
+export const maskEmail = (email: string): string => {
+  const [local, domain] = email.split('@');
+  if (!local || !domain) {
+    return email;
+  }
+  const domainPrefix = domain.slice(0, 2);
+  return `${local}@${domainPrefix}***`;
+};
+
+export const formatUsageValue = (pct?: number | null, raw?: string | null): string => {
+  if (typeof pct === 'number') {
+    return `${pct}%`;
+  }
+  if (raw) {
+    return raw;
+  }
+  return '—';
+};

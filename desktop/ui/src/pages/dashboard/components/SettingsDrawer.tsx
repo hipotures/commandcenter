@@ -6,13 +6,14 @@ import type { ReactNode } from 'react';
 import { Drawer } from '../../../components/drawers/Drawer';
 import { ProjectSettings } from './settings/ProjectSettings';
 import { ThemeSettings } from './settings/ThemeSettings';
+import { PrivacySettings } from './settings/PrivacySettings';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type TabId = 'projects' | 'theme';
+type TabId = 'projects' | 'theme' | 'privacy';
 
 export function SettingsDrawer({ isOpen, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>('projects');
@@ -45,12 +46,21 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
         >
           Theme
         </TabButton>
+        <TabButton
+          active={activeTab === 'privacy'}
+          onClick={() => setActiveTab('privacy')}
+          role="tab"
+          aria-selected={activeTab === 'privacy'}
+        >
+          Privacy
+        </TabButton>
       </div>
 
       {/* Tab content */}
       <div role="tabpanel">
         {activeTab === 'projects' && <ProjectSettings />}
         {activeTab === 'theme' && <ThemeSettings />}
+        {activeTab === 'privacy' && <PrivacySettings />}
       </div>
     </Drawer>
   );

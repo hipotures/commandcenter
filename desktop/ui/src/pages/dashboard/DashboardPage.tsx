@@ -12,12 +12,13 @@ import { useExportPng } from '../../features/export-dashboard/useExportPng';
 import { useRangeNotice } from '../../features/range-notice/useRangeNotice';
 import { formatCurrency, formatNumber, getProjectDisplayName } from '../../lib/format';
 import { calculateGranularity } from '../../lib/time';
-import { useDashboard, useLimitResets, useProjects } from '../../state/queries';
+import { useDashboard, useLimitResets, useProjects, useUsageAccounts } from '../../state/queries';
 import { useAppStore } from '../../state/store';
 import { tokens } from '../../styles/tokens';
 import { DashboardHeader } from './components/DashboardHeader';
 import { RangeNotice } from './components/RangeNotice';
 import { SettingsDrawer } from './components/SettingsDrawer';
+import { UsageAccountsPanel } from './components/UsageAccountsPanel';
 import { useDashboardViewModel } from './useDashboardViewModel';
 
 export function DashboardPage() {
@@ -26,7 +27,14 @@ export function DashboardPage() {
   const [shouldRefresh, setShouldRefresh] = useState(false);
   const dashboardRef = useRef<HTMLElement | null>(null);
 
-  const { settingsOpen, toggleSettings, selectedProjectId, dateFrom, dateTo } = useAppStore();
+  const {
+    settingsOpen,
+    toggleSettings,
+    selectedProjectId,
+    dateFrom,
+    dateTo,
+    visibleUsageAccounts,
+  } = useAppStore();
   const dateRange = { from: dateFrom, to: dateTo };
 
   console.log('[DashboardContent] selectedProjectId:', selectedProjectId);
@@ -43,6 +51,11 @@ export function DashboardPage() {
   );
   const { data: projectsData } = useProjects();
   const { data: limitResets } = useLimitResets(dateRange.from, dateRange.to, true);
+  const {
+    data: usageAccountsData,
+    isLoading: usageAccountsLoading,
+    error: usageAccountsError,
+  } = useUsageAccounts();
 
   const viewModel = useDashboardViewModel(apiData);
   const { isExporting, exportPng } = useExportPng({ dashboardRef });
@@ -100,6 +113,13 @@ export function DashboardPage() {
     : selectedProjectId
       ? getProjectDisplayName({ project_id: selectedProjectId })
       : 'All Projects';
+
+  const usageAccounts = usageAccountsData?.accounts ?? [];
+  const selectedUsageAccounts = usageAccounts.filter((account) =>
+    visibleUsageAccounts.includes(account.email)
+  );
+  const usageErrorMessage =
+    (usageAccountsError as { message?: string } | null)?.message || null;
 
   return (
     <div
@@ -260,6 +280,12 @@ export function DashboardPage() {
             </div>
           </div>
         )}
+        <UsageAccountsPanel
+          accounts={selectedUsageAccounts}
+          hasSelection={visibleUsageAccounts.length > 0}
+          isLoading={usageAccountsLoading}
+          errorMessage={usageErrorMessage}
+        />
         {rangeNotice.message ? (
           <RangeNotice message={rangeNotice.message} isVisible={rangeNotice.isVisible} />
         ) : null}

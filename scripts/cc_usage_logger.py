@@ -29,9 +29,14 @@ def parse_resets_timestamp(raw_value, fallback_tz):
         text = match.group(1).strip()
         tz_name = match.group(2).strip()
 
-    try:
-        dt = datetime.strptime(text, "%b %d, %Y, %I:%M%p")
-    except ValueError:
+    dt = None
+    for fmt in ("%b %d, %Y, %I:%M%p", "%b %d, %Y, %I%p"):
+        try:
+            dt = datetime.strptime(text, fmt)
+            break
+        except ValueError:
+            continue
+    if dt is None:
         return (None, None, None, tz_name)
 
     if tz_name:

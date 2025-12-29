@@ -54,6 +54,11 @@ interface AppState {
   settingsOpen: boolean;
   toggleSettings: () => void;
 
+  // Privacy settings
+  visibleUsageAccounts: string[];
+  toggleUsageAccount: (email: string) => void;
+  setVisibleUsageAccounts: (emails: string[]) => void;
+
   // Search filter (for sessions table)
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -119,6 +124,19 @@ export const useAppStore = create<AppState>()(
       settingsOpen: false,
       toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
 
+      // Privacy settings
+      visibleUsageAccounts: [],
+      toggleUsageAccount: (email) =>
+        set((s) => {
+          const exists = s.visibleUsageAccounts.includes(email);
+          return {
+            visibleUsageAccounts: exists
+              ? s.visibleUsageAccounts.filter((entry) => entry !== email)
+              : [...s.visibleUsageAccounts, email],
+          };
+        }),
+      setVisibleUsageAccounts: (visibleUsageAccounts) => set({ visibleUsageAccounts }),
+
       // Search
       searchQuery: '',
       setSearchQuery: (searchQuery) => set({ searchQuery }),
@@ -131,6 +149,7 @@ export const useAppStore = create<AppState>()(
         dateFrom: state.dateFrom,
         dateTo: state.dateTo,
         selectedProjectId: state.selectedProjectId,
+        visibleUsageAccounts: state.visibleUsageAccounts,
       }),
     }
   )

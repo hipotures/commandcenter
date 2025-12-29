@@ -23,6 +23,8 @@ function pythonApiPlugin() {
           const refresh = refreshParam === 'true' || refreshParam === '1' ? '1' : '0';
           const granularity = params.get('granularity') || 'month';
           command = `uv run python -m command_center.tauri_api dashboard --from ${from} --to ${to} --refresh ${refresh} --granularity ${granularity}`;
+        } else if (path === '/usage-accounts') {
+          command = 'uv run python -m command_center.tauri_api usage-accounts';
         } else if (path === '/day') {
           const date = params.get('date');
           if (!date) {

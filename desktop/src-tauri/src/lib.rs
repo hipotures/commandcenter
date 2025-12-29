@@ -10,6 +10,7 @@ use commands::{
     get_limit_resets,
     export_png_report,
     get_projects,
+    get_usage_accounts,
     update_project,
 };
 
@@ -36,6 +37,7 @@ pub fn run() {
       get_limit_resets,
       export_png_report,
       get_projects,
+      get_usage_accounts,
       update_project
     ])
     .run(tauri::generate_context!())

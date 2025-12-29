@@ -37,6 +37,7 @@ from command_center.database.queries import (
 from command_center.cache.incremental_update import perform_incremental_update
 from command_center.aggregators.streak_calculator import calculate_streaks
 from command_center.visualization.png_generator import generate_usage_report_png
+from command_center.usage_accounts import fetch_latest_usage_accounts
 import base64
 
 
@@ -254,6 +255,28 @@ def get_limit_resets(date_from: str, date_to: str) -> list[dict]:
         return get_limit_events(conn, date_from, date_to)
 
 
+def get_usage_accounts() -> dict:
+    """
+    Get latest cc_usage events per email account.
+
+    Returns:
+        {
+            "accounts": [
+                {
+                    "email": "...",
+                    "captured_at_local": "...",
+                    "current_session_used_raw": "...",
+                    "current_week_used_raw": "...",
+                    "current_week_resets_local": "...",
+                    "current_week_resets_raw": "...",
+                    ...
+                }
+            ]
+        }
+    """
+    return {"accounts": fetch_latest_usage_accounts()}
+
+
 def export_png_report(date_from: str, date_to: str) -> dict:
     """
     Generate PNG usage report and return as base64-encoded string.
@@ -468,6 +491,12 @@ def main():
         help="End date (YYYY-MM-DD)"
     )
 
+    # usage-accounts subcommand
+    usage_accounts_parser = subparsers.add_parser(
+        "usage-accounts",
+        help="Get latest cc_usage accounts"
+    )
+
     # export-png subcommand
     png_parser = subparsers.add_parser(
         "export-png",
@@ -529,6 +558,8 @@ def main():
             result = get_session_details(args.session_id, args.project_id)
         elif args.command == "limits":
             result = get_limit_resets(args.date_from, args.date_to)
+        elif args.command == "usage-accounts":
+            result = get_usage_accounts()
         elif args.command == "export-png":
             result = export_png_report(args.date_from, args.date_to)
         elif args.command == "projects":

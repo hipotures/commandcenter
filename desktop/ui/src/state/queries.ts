@@ -13,6 +13,7 @@ import type {
   ProjectsResponse,
   UpdateProjectParams,
   UpdateProjectResponse,
+  UsageAccountsResponse,
 } from '../types/api';
 
 // Check if running in Tauri
@@ -26,6 +27,7 @@ const ENDPOINT_MAP: Record<string, string> = {
   get_session_details: 'session',
   get_limit_resets: 'limits',
   get_projects: 'projects',
+  get_usage_accounts: 'usage-accounts',
   update_project: 'update-project',
 };
 
@@ -160,6 +162,15 @@ export function useProjects() {
     queryKey: ['projects'],
     queryFn: () => apiCall<ProjectsResponse>('get_projects', {}),
     staleTime: 300_000, // 5 minutes - data rarely changes
+  });
+}
+
+// Usage accounts query
+export function useUsageAccounts() {
+  return useQuery({
+    queryKey: ['usage-accounts'],
+    queryFn: () => apiCall<UsageAccountsResponse>('get_usage_accounts', {}),
+    staleTime: 60_000, // 1 minute
   });
 }
 

@@ -227,6 +227,17 @@ pub async fn get_projects() -> Result<Value, String> {
     call_python_api(&["projects"])
 }
 
+/// Get latest cc_usage account snapshots.
+///
+/// # Returns
+///
+/// JSON object containing:
+/// - accounts: array of account usage rows
+#[tauri::command]
+pub async fn get_usage_accounts() -> Result<Value, String> {
+    call_python_api(&["usage-accounts"])
+}
+
 /// Update project metadata fields.
 ///
 /// # Arguments
