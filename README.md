@@ -7,6 +7,7 @@ Command Center - panel CC
 Modern SQLite-based analytics for Claude Code usage with intelligent caching.
 
 **Inspiration:** The idea and analysis approach were inspired by [cc-wrapped](https://github.com/numman-ali/cc-wrapped).
+**Pricing:** Pricing data is fetched from https://www.litellm.ai/.
 
 ### Example Report
 
