@@ -93,7 +93,16 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
           msOverflowStyle: isExporting ? 'none' : undefined,
         }}
       >
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '14.2857%' }} />
+            <col style={{ width: '14.2857%' }} />
+            <col style={{ width: '14.2857%' }} />
+            <col style={{ width: '14.2857%' }} />
+            <col style={{ width: '14.2857%' }} />
+            <col style={{ width: '14.2857%' }} />
+            <col style={{ width: '14.2857%' }} />
+          </colgroup>
           <thead>
             <tr>
               {['Session ID', 'Model', 'Messages', 'Tokens', 'Cost', 'Date', 'Duration'].map((header) => (
@@ -152,7 +161,17 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                       borderBottom: isLastRow ? 'none' : `1px solid ${tokens.colors.surfaceBorder}`,
                     }}
                   >
-                    <span title={session.id}>{session.id}</span>
+                    <span
+                      title={session.id}
+                      style={{
+                        display: 'block',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {session.id}
+                    </span>
                   </td>
                 ) : (
                   <>
