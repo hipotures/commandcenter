@@ -92,14 +92,41 @@ def main():
         ),
         help="SQLite database path",
     )
+    parser.add_argument("--input", help="Read JSON from a file path")
+    parser.add_argument("--json", help="Read JSON from a literal string")
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args()
 
-    try:
-        payload = json.load(sys.stdin)
-    except json.JSONDecodeError as exc:
-        print(f"Invalid JSON input: {exc}", file=sys.stderr)
-        return 2
+    payload = None
+    if args.json:
+        try:
+            payload = json.loads(args.json)
+        except json.JSONDecodeError as exc:
+            print(f"Invalid JSON input: {exc}", file=sys.stderr)
+            return 2
+    elif args.input:
+        try:
+            with open(args.input, "r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"Invalid JSON input: {exc}", file=sys.stderr)
+            return 2
+    else:
+        if sys.stdin.isatty():
+            print(
+                "No JSON input provided. Use stdin, --input, or --json.",
+                file=sys.stderr,
+            )
+            return 2
+        data = sys.stdin.read()
+        if not data.strip():
+            print("Empty JSON input on stdin.", file=sys.stderr)
+            return 2
+        try:
+            payload = json.loads(data)
+        except json.JSONDecodeError as exc:
+            print(f"Invalid JSON input: {exc}", file=sys.stderr)
+            return 2
 
     now_local = datetime.now().astimezone()
     now_utc = now_local.astimezone(timezone.utc)
