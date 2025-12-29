@@ -38,4 +38,4 @@ Edit individual chapter files as needed. Use version control to track changes.
 
 ---
 
-*Last updated: 2025-12-28*
+*Last updated: 2025-12-29*

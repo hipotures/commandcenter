@@ -37,6 +37,41 @@ The system tracks metadata to minimize redundant work:
 
 **Rationale:** First run processes all historical data (~1-2 minutes). Subsequent runs process only new data (~5 seconds). This makes the tool practical for daily use.
 
+#### 5. Layered Frontend Architecture (Tauri UI)
+
+The desktop UI follows a five-layer runtime stack with dependencies flowing downward:
+- `app/` -> `pages/` -> `features/` -> `components/` -> `lib/`
+- `styles/` and `types/` are shared across layers
+- `state/` is limited to `app/`, `pages/`, and `features/`
+
+**Layer Responsibilities:**
+- **`app/`**: Bootstrap layer (QueryClient provider, theme synchronization, global effects)
+- **`pages/`**: Complete views with screen composition, data fetching, and view model transformation
+- **`features/`**: User-facing interactions as isolated modules (hooks + minimal UI)
+  - Each feature is self-contained and cannot import from other features
+  - Examples: date range selection, PNG export with Tauri file dialog, data range notices
+- **`components/`**: Reusable UI building blocks (cards, charts, tables)
+  - No state access, no feature dependencies (pure presentation)
+  - Promotion rule: Move from `pages/*/components/` only when reused in 2+ places
+- **`lib/`**: Pure utility functions (no React, no state, no side effects)
+  - Fully testable without React test environment
+  - Examples: date formatters, token formatters, chart tick calculators
+
+**Guardrails:** `desktop/ui/eslint.config.js` enforces the boundaries with `import/no-restricted-paths` and type-only imports via `@typescript-eslint/consistent-type-imports`, including explicit blocks on cross-feature imports between `features/date-range`, `features/export-dashboard`, and `features/range-notice`.
+
+**ViewModel Pattern:**
+Separation of data transformation from React rendering:
+- Pure mapping functions (`mapApiToViewModel.ts`) transform API responses into view-friendly shapes
+- Thin hook adapters (`useDashboardViewModel.ts`) provide memoization
+- Benefits: Unit testable without React, predictable transformations, no "transform-in-render" performance issues
+
+**No Barrel Files Policy:**
+- `lib/` and `components/` use direct imports (`import { formatNumber } from '@/lib/format'`)
+- Avoids Vite dev server loading entire module graphs for single-symbol imports
+- Exception: `types/` can use barrel files (type elision removes them at runtime)
+
+**Rationale:** Breaking the former monolithic `App.tsx` (~2,770 lines) into a layered structure improves testability, reuse, and long-term maintainability without changing runtime behavior. The guardrails prevent architectural erosion over time.
+
 ### Architectural Decisions
 
 #### Why SQLite Instead of PostgreSQL/MySQL?
@@ -82,4 +117,3 @@ The system tracks metadata to minimize redundant work:
 - String comparison (slower than integer PKs, but negligible for this scale)
 
 ---
-

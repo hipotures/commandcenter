@@ -99,11 +99,55 @@ command-center/
 │       └── project_metadata.py  # JSON metadata management
 ├── desktop/                     # Tauri desktop application
 │   ├── src-tauri/               # Rust backend
-│   └── ui/                      # React frontend
+│   └── ui/                      # React frontend (Vite)
+│       ├── eslint.config.js     # Layering guardrails
+│       └── src/
+│           ├── app/             # Providers, theme sync, app root
+│           ├── pages/           # Page-level containers (dashboard)
+│           ├── features/        # User actions (date range, export, notices)
+│           ├── components/      # Reusable UI building blocks
+│           ├── lib/             # Pure utilities (date/time/format/charts)
+│           ├── state/           # React Query store + API hooks
+│           ├── styles/          # Tokens and global CSS
+│           ├── types/           # TypeScript types
+│           └── main.tsx         # UI entry point
 ├── pyproject.toml               # Package metadata
 ├── requirements.txt             # Dependencies
 └── uv.lock                      # Locked dependencies
 ```
 
----
+### Desktop UI Architecture (Tauri)
 
+The desktop dashboard UI is organized as a layered frontend with clear dependency direction:
+- Runtime layers: `app/` -> `pages/` -> `features/` -> `components/` -> `lib/`
+- Shared resources: `styles/` and `types/` are available to all layers
+- State access: `state/` is used only by `app/`, `pages/`, and `features/`
+
+**Key layout details:**
+- `app/App.tsx` is now a small entry point (~50 lines) that wires providers (React Query, theme sync) and renders the dashboard page.
+- `pages/dashboard/` owns the screen composition and view model mapping (`mapApiToViewModel.ts` + `useDashboardViewModel.ts`).
+- Dashboard-only UI (header, settings, drawers) is colocated under `pages/dashboard/components/`.
+- User-facing interactions are isolated in `features/`:
+  - `date-range/`: Date range picker with quick presets (7d, 30d, 90d, YTD) and custom range selection
+  - `export-dashboard/`: PNG export via html-to-image with Tauri file dialog (browser fallback included)
+  - `range-notice/`: Animated notice when selected range extends beyond available data
+- Reusable cards/charts/tables live under `components/`.
+- Pure helpers sit in `lib/` for easy testing and reuse (no React dependencies, no state access).
+
+**ViewModel Pattern:**
+- `mapApiToViewModel.ts`: Pure function transforming API response to UI-friendly format (fully testable without React)
+- `useDashboardViewModel.ts`: Thin hook adapter providing memoization around the pure mapping function
+
+**Guardrails:**
+ESLint configuration enforces layer boundaries via `import/no-restricted-paths` and `@typescript-eslint/consistent-type-imports`:
+- `lib/` cannot import from React layers or state
+- `components/` cannot access state, features, or pages
+- `features/` cannot cross-import (each feature is isolated)
+- Type imports use explicit `import type` syntax
+
+**Design Decisions:**
+- **No barrel files** in `lib/` and `components/` (avoids Vite dev server slowdown from unnecessary module graph traversal)
+- **Colocation first**: Components move to shared `components/` only when reused in 2+ places
+- **Tauri detection**: Runtime check for `window.__TAURI__` or `window.__TAURI_INTERNALS__` with browser fallback
+
+---
