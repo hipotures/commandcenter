@@ -37,6 +37,19 @@ export function UsageAccountsPanel({
     }
     return formatDateTimeForDisplay(value, dateTimeFormat) || value;
   };
+
+  const getUsageColor = (pct?: number | null) => {
+    if (typeof pct !== 'number') {
+      return tokens.colors.textPrimary;
+    }
+    if (pct > 99) {
+      return tokens.colors.semanticError;
+    }
+    if (pct > 80) {
+      return tokens.colors.semanticWarning;
+    }
+    return tokens.colors.textPrimary;
+  };
   if (!hasSelection) {
     return null;
   }
@@ -125,8 +138,12 @@ export function UsageAccountsPanel({
             }}
           >
             <div style={{ fontWeight: 600 }}>{maskEmail(account.email)}</div>
-            <div>{formatUsageValue(account.current_session_used_pct, account.current_session_used_raw)}</div>
-            <div>{formatUsageValue(account.current_week_used_pct, account.current_week_used_raw)}</div>
+            <div style={{ color: getUsageColor(account.current_session_used_pct) }}>
+              {formatUsageValue(account.current_session_used_pct, account.current_session_used_raw)}
+            </div>
+            <div style={{ color: getUsageColor(account.current_week_used_pct) }}>
+              {formatUsageValue(account.current_week_used_pct, account.current_week_used_raw)}
+            </div>
             <div>{formatResetTime(account.current_week_resets_local, account.current_week_resets_raw)}</div>
           </div>
         ))}
