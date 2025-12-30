@@ -9,7 +9,6 @@ import { CacheEfficiency } from '../../components/cards/CacheEfficiency';
 import { KPICard } from '../../components/cards/KPICard';
 import { SessionsTable } from '../../components/tables/SessionsTable';
 import { useExportPng } from '../../features/export-dashboard/useExportPng';
-import { useRangeNotice } from '../../features/range-notice/useRangeNotice';
 import { formatCurrency, formatNumber, getProjectDisplayName } from '../../lib/format';
 import { formatDateTimeForDisplay } from '../../lib/date';
 import { calculateGranularity } from '../../lib/time';
@@ -17,7 +16,6 @@ import { useDashboard, useLimitResets, useProjects, useUsageAccounts } from '../
 import { useAppStore } from '../../state/store';
 import { tokens } from '../../styles/tokens';
 import { DashboardHeader } from './components/DashboardHeader';
-import { RangeNotice } from './components/RangeNotice';
 import { SettingsDrawer } from './components/SettingsDrawer';
 import { UsageAccountsPanel } from './components/UsageAccountsPanel';
 import { useDashboardViewModel } from './useDashboardViewModel';
@@ -61,10 +59,6 @@ export function DashboardPage() {
 
   const viewModel = useDashboardViewModel(apiData);
   const { isExporting, exportPng } = useExportPng({ dashboardRef });
-  const rangeNotice = useRangeNotice({
-    dataRange: viewModel?.meta.dataRange,
-    selectedRange: dateRange,
-  });
 
   const handleRefresh = () => {
     setShouldRefresh(true);
@@ -288,10 +282,6 @@ export function DashboardPage() {
           isLoading={usageAccountsLoading}
           errorMessage={usageErrorMessage}
         />
-        {rangeNotice.message ? (
-          <RangeNotice message={rangeNotice.message} isVisible={rangeNotice.isVisible} />
-        ) : null}
-
         <div
           style={{
             display: 'grid',
