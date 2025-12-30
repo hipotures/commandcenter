@@ -360,7 +360,13 @@ export function DashboardPage() {
         </div>
 
         <div style={{ marginBottom: '32px' }}>
-          <ActivityHeatmap data={viewModel.dailyActivity} dateFrom={dateRange.from} dateTo={dateRange.to} />
+          <ActivityHeatmap
+            data={viewModel.heatmapActivity}
+            heatmapFrom={viewModel.heatmapRange.from}
+            heatmapTo={viewModel.heatmapRange.to}
+            selectedFrom={dateRange.from}
+            selectedTo={dateRange.to}
+          />
         </div>
 
         <div

@@ -4,6 +4,8 @@ import { formatDurationRange } from '../../lib/time';
 
 export const mapApiToViewModel = (apiData: DashboardBundle): DashboardViewModel => {
   const dailyActivity = apiData.daily_activity;
+  const heatmapActivity = apiData.heatmap.daily_activity;
+  const heatmapRange = apiData.heatmap.range;
   const timelineData = apiData.timeline.data.map((point) => ({
     period: point.period,
     messages: point.messages,
@@ -62,6 +64,8 @@ export const mapApiToViewModel = (apiData: DashboardBundle): DashboardViewModel 
 
   return {
     dailyActivity,
+    heatmapActivity,
+    heatmapRange,
     timelineData,
     hourlyData,
     dailyData,

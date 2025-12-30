@@ -66,8 +66,15 @@ export interface DashboardDataRange {
   end: string | null;
 }
 
+export interface HeatmapRange {
+  from: string;
+  to: string;
+}
+
 export interface DashboardViewModel {
   dailyActivity: Record<string, number>;
+  heatmapActivity: Record<string, number>;
+  heatmapRange: HeatmapRange;
   timelineData: DashboardTimelinePoint[];
   hourlyData: DashboardHourlyPoint[];
   dailyData: DashboardDailyPoint[];
@@ -97,8 +104,10 @@ export interface EmptyStateProps {
 
 export interface ActivityHeatmapProps {
   data: Record<string, number>;
-  dateFrom: string;
-  dateTo: string;
+  heatmapFrom: string;
+  heatmapTo: string;
+  selectedFrom: string;
+  selectedTo: string;
 }
 
 export interface ActivityTimelineProps {

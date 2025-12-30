@@ -96,6 +96,10 @@ export interface DashboardBundle {
   model_distribution: ModelDistributionItem[];
   hourly_profile: HourlyDataPoint[];
   recent_sessions: SessionSummary[];
+  heatmap: {
+    range: DateRange;
+    daily_activity: Record<string, number>;
+  };
   meta?: {
     updated_files: number;
     generated_at: string;

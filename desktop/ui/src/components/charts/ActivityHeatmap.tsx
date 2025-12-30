@@ -5,26 +5,37 @@ import { formatDateForDisplay } from '../../lib/date';
 import { useAppStore } from '../../state/store';
 import { tokens } from '../../styles/tokens';
 
-export function ActivityHeatmap({ data, dateFrom, dateTo }: ActivityHeatmapProps) {
+const parseLocalDate = (value: string) => {
+  const parts = value.split('-').map((part) => Number(part));
+  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
+    return new Date('');
+  }
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day);
+};
+
+const formatLocalDate = (value: Date) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export function ActivityHeatmap({ data, heatmapFrom, heatmapTo, selectedFrom, selectedTo }: ActivityHeatmapProps) {
   const { dateFormat } = useAppStore();
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
 
   const { weeks, maxCount } = useMemo(() => {
-    const allDates = Object.keys(data);
-    if (allDates.length === 0) {
+    const start = parseLocalDate(heatmapFrom);
+    const end = parseLocalDate(heatmapTo);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
       return { weeks: [], maxCount: 1 };
     }
 
-    const sortedDates = allDates.sort();
-    const firstDate = new Date(sortedDates[0]);
-    const lastDate = new Date(sortedDates[sortedDates.length - 1]);
-
-    const start = new Date(firstDate.getFullYear(), 0, 1);
-    const end = new Date(lastDate.getFullYear(), 11, 31);
-
     const filledData: Record<string, number> = {};
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(d);
       filledData[dateStr] = data[dateStr] || 0;
     }
 
@@ -34,12 +45,15 @@ export function ActivityHeatmap({ data, dateFrom, dateTo }: ActivityHeatmapProps
     const weeksMap = new Map<string, Array<{ date: string; count: number; dayOfWeek: number }>>();
 
     entries.forEach(([date, count]) => {
-      const day = new Date(date);
+      const day = parseLocalDate(date);
+      if (Number.isNaN(day.getTime())) {
+        return;
+      }
       const dayOfWeek = (day.getDay() + 6) % 7;
 
       const monday = new Date(day);
       monday.setDate(day.getDate() - dayOfWeek);
-      const weekKey = monday.toISOString().split('T')[0];
+      const weekKey = formatLocalDate(monday);
 
       if (!weeksMap.has(weekKey)) {
         weeksMap.set(weekKey, []);
@@ -53,7 +67,7 @@ export function ActivityHeatmap({ data, dateFrom, dateTo }: ActivityHeatmapProps
       .map(([_, week]) => week);
 
     return { weeks: weeksArr, maxCount: max };
-  }, [data]);
+  }, [data, heatmapFrom, heatmapTo]);
 
   const getHeatLevel = (count: number) => {
     if (count === 0) return 0;
@@ -81,7 +95,7 @@ export function ActivityHeatmap({ data, dateFrom, dateTo }: ActivityHeatmapProps
         labels[idx] = '';
         return;
       }
-      const month = new Date(week[0].date).getMonth();
+      const month = parseLocalDate(week[0].date).getMonth();
       const isMonthChange = lastMonth === null || month !== lastMonth;
       if (isMonthChange && idx - lastLabelIndex >= minWeekGap) {
         labels[idx] = monthLabels[month];
@@ -175,7 +189,7 @@ export function ActivityHeatmap({ data, dateFrom, dateTo }: ActivityHeatmapProps
                   .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
                   .map((day) => {
                     const level = getHeatLevel(day.count);
-                    const isInSelectedRange = day.date >= dateFrom && day.date <= dateTo;
+                    const isInSelectedRange = day.date >= selectedFrom && day.date <= selectedTo;
 
                     return (
                       <div

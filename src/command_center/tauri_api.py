@@ -152,6 +152,12 @@ def get_dashboard_bundle(
 
         data_range = query_data_range(conn, project_id)
 
+        heatmap_to = datetime.now().date()
+        heatmap_from = heatmap_to - timedelta(days=364)
+        heatmap_from_str = heatmap_from.strftime('%Y-%m-%d')
+        heatmap_to_str = heatmap_to.strftime('%Y-%m-%d')
+        heatmap_activity = query_daily_stats(conn, heatmap_from_str, heatmap_to_str, project_id)
+
         # Build response
         return {
             "range": {
@@ -180,6 +186,10 @@ def get_dashboard_bundle(
             "model_distribution": model_distribution,
             "hourly_profile": hourly_profile,
             "recent_sessions": recent_sessions,
+            "heatmap": {
+                "range": {"from": heatmap_from_str, "to": heatmap_to_str},
+                "daily_activity": heatmap_activity,
+            },
             "meta": {
                 "updated_files": updated_files,
                 "generated_at": datetime.now().isoformat(),
