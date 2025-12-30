@@ -9,6 +9,7 @@ interface UsageAccountsPanelProps {
   hasSelection: boolean;
   isLoading?: boolean;
   errorMessage?: string | null;
+  isExporting?: boolean;
 }
 
 export function UsageAccountsPanel({
@@ -16,6 +17,7 @@ export function UsageAccountsPanel({
   hasSelection,
   isLoading = false,
   errorMessage = null,
+  isExporting = false,
 }: UsageAccountsPanelProps) {
   const { dateTimeFormat } = useAppStore();
 
@@ -81,7 +83,14 @@ export function UsageAccountsPanel({
     }
 
     return (
-      <div style={{ overflowX: 'auto' }}>
+      <div
+        data-export-hide-scrollbar={isExporting ? 'true' : undefined}
+        style={{
+          overflowX: 'auto',
+          scrollbarWidth: isExporting ? 'none' : undefined,
+          msOverflowStyle: isExporting ? 'none' : undefined,
+        }}
+      >
         <div
           style={{
             display: 'grid',

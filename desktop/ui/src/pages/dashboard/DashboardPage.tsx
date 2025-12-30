@@ -281,6 +281,7 @@ export function DashboardPage() {
           hasSelection={visibleUsageAccounts.length > 0}
           isLoading={usageAccountsLoading}
           errorMessage={usageErrorMessage}
+          isExporting={isExporting}
         />
         <div
           style={{
