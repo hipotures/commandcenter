@@ -42,10 +42,10 @@ export function UsageAccountsPanel({
     if (typeof pct !== 'number') {
       return tokens.colors.textPrimary;
     }
-    if (pct > 99) {
+    if (pct >= 99) {
       return tokens.colors.semanticError;
     }
-    if (pct > 80) {
+    if (pct >= 80) {
       return tokens.colors.semanticWarning;
     }
     return tokens.colors.textPrimary;
