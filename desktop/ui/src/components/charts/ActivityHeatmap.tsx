@@ -71,7 +71,9 @@ export function ActivityHeatmap({ data, heatmapFrom, heatmapTo, selectedFrom, se
 
   const getHeatLevel = (count: number) => {
     if (count === 0) return 0;
-    const ratio = count / maxCount;
+    const denom = Math.log(maxCount + 1);
+    if (denom <= 0) return 0;
+    const ratio = Math.log(count + 1) / denom;
     if (ratio <= 0.1) return 1;
     if (ratio <= 0.25) return 2;
     if (ratio <= 0.4) return 3;

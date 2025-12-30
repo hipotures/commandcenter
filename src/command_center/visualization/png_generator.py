@@ -5,6 +5,7 @@ Ported from original cc_wrapped.py
 """
 import os
 import datetime
+import math
 from io import BytesIO
 from typing import Optional
 
@@ -171,7 +172,7 @@ def generate_usage_report_png(stats: UsageStats) -> bytes:
         if max_count == 0:
             return 0
 
-        ratio = count / max_count
+        ratio = math.log(count + 1) / math.log(max_count + 1)
 
         if ratio <= 0.1:
             return 1
