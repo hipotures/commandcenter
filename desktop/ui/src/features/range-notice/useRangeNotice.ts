@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { toDateMs } from '../../lib/date';
+import { formatDateForDisplay, toDateMs } from '../../lib/date';
 import type { DashboardDataRange } from '../../types/dashboard';
+import { useAppStore } from '../../state/store';
 
 interface UseRangeNoticeOptions {
   dataRange?: DashboardDataRange;
@@ -8,6 +9,7 @@ interface UseRangeNoticeOptions {
 }
 
 export function useRangeNotice({ dataRange, selectedRange }: UseRangeNoticeOptions) {
+  const { dateFormat } = useAppStore();
   const [message, setMessage] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -23,10 +25,12 @@ export function useRangeNotice({ dataRange, selectedRange }: UseRangeNoticeOptio
 
     const messages: string[] = [];
     if (dataRange.start && toDateMs(selectedRange.from) < toDateMs(dataRange.start)) {
-      messages.push(`Data starts on ${dataRange.start}.`);
+      const formattedStart = formatDateForDisplay(dataRange.start, dateFormat) || dataRange.start;
+      messages.push(`Data starts on ${formattedStart}.`);
     }
     if (dataRange.end && toDateMs(selectedRange.to) > toDateMs(dataRange.end)) {
-      messages.push(`Data ends on ${dataRange.end}.`);
+      const formattedEnd = formatDateForDisplay(dataRange.end, dateFormat) || dataRange.end;
+      messages.push(`Data ends on ${formattedEnd}.`);
     }
 
     if (messages.length === 0) {
@@ -36,7 +40,7 @@ export function useRangeNotice({ dataRange, selectedRange }: UseRangeNoticeOptio
     }
 
     setMessage(`${messages.join(' ')} Selected range includes empty days.`);
-  }, [dataRange?.start, dataRange?.end, selectedRange.from, selectedRange.to]);
+  }, [dataRange?.start, dataRange?.end, selectedRange.from, selectedRange.to, dateFormat]);
 
   useEffect(() => {
     if (!message) {

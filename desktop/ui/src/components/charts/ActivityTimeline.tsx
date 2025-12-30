@@ -13,19 +13,16 @@ import {
 import type { ActivityTimelineProps } from '../../types/dashboard';
 import { formatCurrency, formatNumber } from '../../lib/format';
 import { buildTicks, chooseTickStep, parsePeriodToTimestamp, toGranularityTimestamp } from '../../lib/charts';
-import { startOfDay } from '../../lib/date';
+import {
+  formatDateForDisplay,
+  formatDateTimeForDisplay,
+  formatTimeForDisplay,
+  startOfDay,
+  type DateFormatId,
+} from '../../lib/date';
+import { useAppStore } from '../../state/store';
 import { tokens } from '../../styles/tokens';
 import { EmptyState } from '../feedback/EmptyState';
-
-const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' });
-const dayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
-const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-});
 
 type TimeTickProps = {
   x?: number;
@@ -33,6 +30,7 @@ type TimeTickProps = {
   payload?: { value: number };
   showDateFor?: Set<number>;
   granularity: ActivityTimelineProps['granularity'];
+  dateFormat: DateFormatId;
   tickCount?: number;
   index?: number;
 };
@@ -43,6 +41,7 @@ function TimeTick({
   payload,
   showDateFor,
   granularity,
+  dateFormat,
   tickCount,
   index,
 }: TimeTickProps) {
@@ -67,14 +66,17 @@ function TimeTick({
     return (
       <g transform={`translate(${x},${y})`}>
         <text textAnchor={textAnchor} dy={12} fontSize={11} fill={tokens.colors.textMuted}>
-          <tspan x={0}>{timeFormatter.format(date)}</tspan>
-          {showDate && <tspan x={0} dy={14}>{dayFormatter.format(date)}</tspan>}
+          <tspan x={0}>{formatTimeForDisplay(date)}</tspan>
+          {showDate && <tspan x={0} dy={14}>{formatDateForDisplay(date, dateFormat)}</tspan>}
         </text>
       </g>
     );
   }
 
-  const label = granularity === 'month' ? monthFormatter.format(date) : dayFormatter.format(date);
+  const label =
+    granularity === 'month'
+      ? formatDateForDisplay(date, dateFormat, ['month', 'year'])
+      : formatDateForDisplay(date, dateFormat);
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -93,6 +95,7 @@ export function ActivityTimeline({
   limitResets,
   isExporting = false,
 }: ActivityTimelineProps) {
+  const { dateFormat } = useAppStore();
   const [metric, setMetric] = useState<'messages' | 'tokens' | 'cost'>('messages');
   const [selectedLimitTypes, setSelectedLimitTypes] = useState<Set<string>>(new Set());
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -198,12 +201,12 @@ export function ActivityTimeline({
     }
     const date = new Date(value);
     if (granularity === 'month') {
-      return monthFormatter.format(date);
+      return formatDateForDisplay(date, dateFormat, ['month', 'year']);
     }
     if (granularity === 'week' || granularity === 'day') {
-      return dayFormatter.format(date);
+      return formatDateForDisplay(date, dateFormat);
     }
-    return dateTimeFormatter.format(date);
+    return formatDateTimeForDisplay(date, dateFormat);
   };
 
   return (
@@ -289,6 +292,7 @@ export function ActivityTimeline({
                       {...props}
                       granularity={granularity}
                       showDateFor={showDateFor}
+                      dateFormat={dateFormat}
                       tickCount={ticks.length}
                     />
                   )}

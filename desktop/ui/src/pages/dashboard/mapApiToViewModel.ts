@@ -1,6 +1,5 @@
 import type { DashboardBundle } from '../../types/api';
 import type { DashboardViewModel } from '../../types/dashboard';
-import { formatDateHour } from '../../lib/date';
 import { formatDurationRange } from '../../lib/time';
 
 export const mapApiToViewModel = (apiData: DashboardBundle): DashboardViewModel => {
@@ -49,14 +48,14 @@ export const mapApiToViewModel = (apiData: DashboardBundle): DashboardViewModel 
     messages: session.messages,
     tokens: session.tokens,
     cost: session.cost,
-    date: formatDateHour(session.first_time || '') || 'N/A',
+    date: session.first_time || '',
     duration: formatDurationRange(session.first_time, session.last_time),
     models: (session.models ?? []).map((model) => ({
       model: model.display_name,
       messages: model.messages,
       tokens: model.tokens,
       cost: model.cost,
-      date: formatDateHour(model.first_time || '') || 'N/A',
+      date: model.first_time || '',
       duration: formatDurationRange(model.first_time, model.last_time),
     })),
   }));

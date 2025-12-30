@@ -5,6 +5,7 @@ import { useDayDetails } from '../../../../state/queries';
 import { useAppStore } from '../../../../state/store';
 import { Drawer } from '../../../../components/drawers/Drawer';
 import { HourlyChart } from '../../../../components/charts/HourlyChart';
+import { formatDateForDisplay } from '../../../../lib/date';
 
 interface Props {
   date: string | null;
@@ -12,8 +13,9 @@ interface Props {
 }
 
 export function DayDrawer({ date, onClose }: Props) {
-  const { selectedProjectId } = useAppStore();
+  const { selectedProjectId, dateFormat } = useAppStore();
   const { data, isLoading, error } = useDayDetails(date, selectedProjectId);
+  const formattedDate = date ? formatDateForDisplay(date, dateFormat) || date : '';
 
   const formatTokens = (value: number) => {
     if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
@@ -22,7 +24,7 @@ export function DayDrawer({ date, onClose }: Props) {
   };
 
   return (
-    <Drawer isOpen={!!date} onClose={onClose} title={`Day: ${date || ''}`} width="700px">
+    <Drawer isOpen={!!date} onClose={onClose} title={`Day: ${formattedDate}`} width="700px">
       {isLoading && <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>}
       {error && <div style={{ color: 'var(--color-error)' }}>Error loading day details</div>}
 

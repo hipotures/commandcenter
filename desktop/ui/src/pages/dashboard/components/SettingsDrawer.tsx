@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Drawer } from '../../../components/drawers/Drawer';
 import { ProjectSettings } from './settings/ProjectSettings';
-import { ThemeSettings } from './settings/ThemeSettings';
+import { DisplaySettings } from './settings/DisplaySettings';
 import { PrivacySettings } from './settings/PrivacySettings';
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
   onClose: () => void;
 }
 
-type TabId = 'projects' | 'theme' | 'privacy';
+type TabId = 'projects' | 'display' | 'privacy';
 
 export function SettingsDrawer({ isOpen, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>('projects');
@@ -39,12 +39,12 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
           Projects
         </TabButton>
         <TabButton
-          active={activeTab === 'theme'}
-          onClick={() => setActiveTab('theme')}
+          active={activeTab === 'display'}
+          onClick={() => setActiveTab('display')}
           role="tab"
-          aria-selected={activeTab === 'theme'}
+          aria-selected={activeTab === 'display'}
         >
-          Theme
+          Display
         </TabButton>
         <TabButton
           active={activeTab === 'privacy'}
@@ -59,7 +59,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
       {/* Tab content */}
       <div role="tabpanel">
         {activeTab === 'projects' && <ProjectSettings />}
-        {activeTab === 'theme' && <ThemeSettings />}
+        {activeTab === 'display' && <DisplaySettings />}
         {activeTab === 'privacy' && <PrivacySettings />}
       </div>
     </Drawer>

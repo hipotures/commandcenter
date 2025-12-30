@@ -1,5 +1,7 @@
 import type { UsageAccount } from '../../../types/api';
 import { formatUsageValue, maskEmail } from '../../../lib/format';
+import { formatDateTimeForDisplay } from '../../../lib/date';
+import { useAppStore } from '../../../state/store';
 import { tokens } from '../../../styles/tokens';
 
 interface UsageAccountsPanelProps {
@@ -9,37 +11,30 @@ interface UsageAccountsPanelProps {
   errorMessage?: string | null;
 }
 
-const formatResetTime = (localValue?: string | null, rawValue?: string | null): string => {
-  if (localValue) {
-    const parsed = new Date(localValue);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleString();
-    }
-    return localValue;
-  }
-  if (rawValue) {
-    return rawValue;
-  }
-  return '—';
-};
-
-const formatSnapshotTime = (value?: string | null): string => {
-  if (!value) {
-    return '—';
-  }
-  const parsed = new Date(value);
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toLocaleString();
-  }
-  return value;
-};
-
 export function UsageAccountsPanel({
   accounts,
   hasSelection,
   isLoading = false,
   errorMessage = null,
 }: UsageAccountsPanelProps) {
+  const { dateFormat } = useAppStore();
+
+  const formatResetTime = (localValue?: string | null, rawValue?: string | null): string => {
+    if (localValue) {
+      return formatDateTimeForDisplay(localValue, dateFormat) || localValue;
+    }
+    if (rawValue) {
+      return rawValue;
+    }
+    return '—';
+  };
+
+  const formatSnapshotTime = (value?: string | null): string => {
+    if (!value) {
+      return '—';
+    }
+    return formatDateTimeForDisplay(value, dateFormat) || value;
+  };
   if (!hasSelection) {
     return null;
   }
@@ -53,7 +48,7 @@ export function UsageAccountsPanel({
       .sort((a, b) => b.parsed.getTime() - a.parsed.getTime());
 
     if (timestamps.length > 0) {
-      return timestamps[0].parsed.toLocaleString();
+      return formatDateTimeForDisplay(timestamps[0].parsed, dateFormat) || timestamps[0].raw;
     }
 
     const fallback = accounts.find((account) => account.captured_at_local)?.captured_at_local;

@@ -3,6 +3,8 @@ import { Calendar, ChevronDown } from 'lucide-react';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../../styles/datepicker-custom.css';
 import type { DashboardDataRange } from '../../types/dashboard';
+import { formatDateForDisplay, getDateFormatOption } from '../../lib/date';
+import { useAppStore } from '../../state/store';
 import { tokens } from '../../styles/tokens';
 import { useDateRange } from './useDateRange';
 
@@ -31,6 +33,10 @@ export function DateRangePicker({
     setRangeLastDays,
     setRangeAll,
   } = useDateRange({ defaultFrom, dataRange, firstSessionDate });
+  const { dateFormat } = useAppStore();
+  const dateFormatOption = getDateFormatOption(dateFormat);
+  const formattedFrom = formatDateForDisplay(dateRange.from, dateFormat) || dateRange.from;
+  const formattedTo = formatDateForDisplay(dateRange.to, dateFormat) || dateRange.to;
 
   return (
     <div style={{ position: 'relative' }}>
@@ -51,7 +57,7 @@ export function DateRangePicker({
       >
         <Calendar size={16} color={tokens.colors.accentPrimary} />
         <span style={{ fontSize: '14px', color: tokens.colors.textSecondary }}>
-          {dateRange.from} → {dateRange.to}
+          {formattedFrom} → {formattedTo}
         </span>
         <ChevronDown size={14} color={tokens.colors.textMuted} />
       </div>
@@ -89,7 +95,7 @@ export function DateRangePicker({
               <DatePicker
                 selected={new Date(tempFrom)}
                 onChange={(date: Date | null) => date && setTempFrom(date.toISOString().split('T')[0])}
-                dateFormat="yyyy-MM-dd"
+                dateFormat={dateFormatOption.dateFnsFormat}
                 shouldCloseOnSelect={true}
                 customInput={
                   <input
@@ -126,7 +132,7 @@ export function DateRangePicker({
               <DatePicker
                 selected={new Date(tempTo)}
                 onChange={(date: Date | null) => date && setTempTo(date.toISOString().split('T')[0])}
-                dateFormat="yyyy-MM-dd"
+                dateFormat={dateFormatOption.dateFnsFormat}
                 shouldCloseOnSelect={true}
                 customInput={
                   <input

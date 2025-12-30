@@ -2,6 +2,8 @@
  * 53x7 Heatmap - weekly activity visualization (53 weeks x 7 days)
  */
 import { useMemo } from 'react';
+import { formatDateForDisplay } from '../../lib/date';
+import { useAppStore } from '../../state/store';
 
 interface DailyActivity {
   date: string;
@@ -15,6 +17,7 @@ interface Props {
 }
 
 export function Heatmap({ data, onDayClick }: Props) {
+  const { dateFormat } = useAppStore();
   const { grid, maxTokens } = useMemo(() => {
     // Create a map of date -> activity
     const activityMap = new Map(data.map((d) => [d.date, d]));
@@ -98,7 +101,7 @@ export function Heatmap({ data, onDayClick }: Props) {
                   key={`${weekIndex}-${dayIndex}`}
                   title={
                     day
-                      ? `${day.date}\n${day.messages} messages\n${formatTokens(day.tokens)} tokens`
+                      ? `${formatDateForDisplay(day.date, dateFormat) || day.date}\n${day.messages} messages\n${formatTokens(day.tokens)} tokens`
                       : ''
                   }
                   onClick={() => day && onDayClick?.(day.date)}

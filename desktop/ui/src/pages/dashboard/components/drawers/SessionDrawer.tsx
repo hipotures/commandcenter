@@ -4,6 +4,7 @@
 import { useSessionDetails } from '../../../../state/queries';
 import { useAppStore } from '../../../../state/store';
 import { Drawer } from '../../../../components/drawers/Drawer';
+import { formatDateForDisplay, formatTimeForDisplay } from '../../../../lib/date';
 
 interface Props {
   sessionId: string | null;
@@ -11,7 +12,7 @@ interface Props {
 }
 
 export function SessionDrawer({ sessionId, onClose }: Props) {
-  const { selectedProjectId } = useAppStore();
+  const { selectedProjectId, dateFormat } = useAppStore();
   const { data, isLoading, error } = useSessionDetails(sessionId, selectedProjectId);
 
   const formatTokens = (value: number) => {
@@ -56,18 +57,20 @@ export function SessionDrawer({ sessionId, onClose }: Props) {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>Date:</span>
-                <span style={{ color: 'var(--color-text-primary)' }}>{data.date}</span>
+                <span style={{ color: 'var(--color-text-primary)' }}>
+                  {formatDateForDisplay(data.date, dateFormat) || data.date}
+                </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>Started:</span>
                 <span style={{ color: 'var(--color-text-primary)' }}>
-                  {new Date(data.first_time).toLocaleTimeString()}
+                  {formatTimeForDisplay(data.first_time, { includeSeconds: true }) || data.first_time}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>Ended:</span>
                 <span style={{ color: 'var(--color-text-primary)' }}>
-                  {new Date(data.last_time).toLocaleTimeString()}
+                  {formatTimeForDisplay(data.last_time, { includeSeconds: true }) || data.last_time}
                 </span>
               </div>
             </div>
@@ -117,7 +120,7 @@ export function SessionDrawer({ sessionId, onClose }: Props) {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                     <span style={{ color: 'var(--color-text-secondary)' }}>
-                      #{index + 1} • {new Date(message.timestamp).toLocaleTimeString()}
+                      #{index + 1} • {formatTimeForDisplay(message.timestamp, { includeSeconds: true }) || message.timestamp}
                     </span>
                     <span style={{ color: 'var(--color-text-muted)' }}>{message.display_name}</span>
                   </div>

@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import type { ActivityHeatmapProps } from '../../types/dashboard';
+import { formatDateForDisplay } from '../../lib/date';
+import { useAppStore } from '../../state/store';
 import { tokens } from '../../styles/tokens';
 
 export function ActivityHeatmap({ data, dateFrom, dateTo }: ActivityHeatmapProps) {
+  const { dateFormat } = useAppStore();
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
 
   const { weeks, maxCount } = useMemo(() => {
@@ -215,7 +218,7 @@ export function ActivityHeatmap({ data, dateFrom, dateTo }: ActivityHeatmapProps
                 boxShadow: tokens.shadows.lg,
               }}
             >
-              {hoveredDay}: {data[hoveredDay] || 0} messages
+              {formatDateForDisplay(hoveredDay, dateFormat) || hoveredDay}: {data[hoveredDay] || 0} messages
             </div>
           )}
         </div>

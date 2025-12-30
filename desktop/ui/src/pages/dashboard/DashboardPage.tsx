@@ -11,6 +11,7 @@ import { SessionsTable } from '../../components/tables/SessionsTable';
 import { useExportPng } from '../../features/export-dashboard/useExportPng';
 import { useRangeNotice } from '../../features/range-notice/useRangeNotice';
 import { formatCurrency, formatNumber, getProjectDisplayName } from '../../lib/format';
+import { formatDateTimeForDisplay } from '../../lib/date';
 import { calculateGranularity } from '../../lib/time';
 import { useDashboard, useLimitResets, useProjects, useUsageAccounts } from '../../state/queries';
 import { useAppStore } from '../../state/store';
@@ -34,6 +35,7 @@ export function DashboardPage() {
     dateFrom,
     dateTo,
     visibleUsageAccounts,
+    dateFormat,
   } = useAppStore();
   const dateRange = { from: dateFrom, to: dateTo };
 
@@ -387,7 +389,7 @@ export function DashboardPage() {
           }}
         >
           <div style={{ fontSize: '13px', color: tokens.colors.textMuted, flex: '1 1 60%', minWidth: 0 }}>
-            <span>Last updated: {new Date().toLocaleString()}</span>
+            <span>Last updated: {formatDateTimeForDisplay(new Date(), dateFormat, { includeSeconds: true })}</span>
             <span data-export-exclude="true"> • DB Size: 52.3 MB • </span>
             <span data-export-exclude="true" style={{ color: tokens.colors.semanticSuccess, marginLeft: '8px' }}>
               ● Connected

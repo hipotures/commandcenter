@@ -1,15 +1,15 @@
 /**
- * Theme Settings - dark/light mode toggle and future color customization
+ * Display Settings - theme and date formatting controls
  */
+import { Moon, Sun, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../../../../state/store';
-import { Sun, Moon } from 'lucide-react';
+import { DATE_FORMAT_OPTIONS, formatDateForDisplay, type DateFormatId } from '../../../../lib/date';
 
-export function ThemeSettings() {
-  const { darkMode, toggleDarkMode } = useAppStore();
+export function DisplaySettings() {
+  const { darkMode, toggleDarkMode, dateFormat, setDateFormat } = useAppStore();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)' }}>
-      {/* Dark mode toggle */}
       <div>
         <h3
           style={{
@@ -19,8 +19,20 @@ export function ThemeSettings() {
             marginBottom: 'var(--spacing-md)',
           }}
         >
-          Appearance
+          Theme
         </h3>
+
+        <div
+          style={{
+            fontSize: 'var(--font-size-xs)',
+            color: 'var(--color-text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            marginBottom: 'var(--spacing-sm)',
+          }}
+        >
+          Appearance
+        </div>
 
         <div
           style={{
@@ -81,7 +93,6 @@ export function ThemeSettings() {
         </div>
       </div>
 
-      {/* Future: Custom colors */}
       <div>
         <h3
           style={{
@@ -91,21 +102,77 @@ export function ThemeSettings() {
             marginBottom: 'var(--spacing-md)',
           }}
         >
-          Customization
+          Date & Time
         </h3>
 
         <div
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 'var(--spacing-md)',
             padding: 'var(--spacing-md)',
             backgroundColor: 'var(--color-surface)',
             borderRadius: 'var(--radius-md)',
             border: '1px solid var(--color-border)',
-            color: 'var(--color-text-muted)',
-            fontSize: 'var(--font-size-sm)',
-            textAlign: 'center',
           }}
         >
-          Custom color schemes coming soon...
+          <div>
+            <div
+              style={{
+                fontSize: 'var(--font-size-base)',
+                fontWeight: 'var(--font-weight-medium)',
+                color: 'var(--color-text-primary)',
+              }}
+            >
+              Date format
+            </div>
+            <div
+              style={{
+                fontSize: 'var(--font-size-xs)',
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              Applies to all dates shown on the dashboard.
+            </div>
+          </div>
+
+          <div style={{ position: 'relative' }}>
+            <select
+              value={dateFormat}
+              onChange={(event) => setDateFormat(event.target.value as DateFormatId)}
+              style={{
+                appearance: 'none',
+                padding: '8px 36px 8px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text-primary)',
+                fontSize: 'var(--font-size-sm)',
+                fontFamily: "'DM Mono', monospace",
+                cursor: 'pointer',
+                minWidth: '180px',
+              }}
+              aria-label="Select date format"
+            >
+              {DATE_FORMAT_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label} ({formatDateForDisplay('2025-01-31', option.id)})
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              style={{
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--color-text-muted)',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

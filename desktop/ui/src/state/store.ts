@@ -4,6 +4,8 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Granularity } from '../types/api';
+import type { DateFormatId } from '../lib/date';
+import { DEFAULT_DATE_FORMAT } from '../lib/date';
 
 type DrawerType = 'messages' | 'sessions' | 'tokens' | 'cost' | 'streak' | 'cache' | null;
 
@@ -12,6 +14,10 @@ interface AppState {
   darkMode: boolean;
   setDarkMode: (dark: boolean) => void;
   toggleDarkMode: () => void;
+
+  // Date format
+  dateFormat: DateFormatId;
+  setDateFormat: (format: DateFormatId) => void;
 
   // Date range
   dateFrom: string;
@@ -83,6 +89,10 @@ export const useAppStore = create<AppState>()(
       setDarkMode: (darkMode) => set({ darkMode }),
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
 
+      // Date format
+      dateFormat: DEFAULT_DATE_FORMAT,
+      setDateFormat: (dateFormat) => set({ dateFormat }),
+
       // Date range
       dateFrom: defaultFrom,
       dateTo: defaultTo,
@@ -146,6 +156,7 @@ export const useAppStore = create<AppState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         darkMode: state.darkMode,
+        dateFormat: state.dateFormat,
         dateFrom: state.dateFrom,
         dateTo: state.dateTo,
         selectedProjectId: state.selectedProjectId,

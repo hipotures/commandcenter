@@ -4,6 +4,7 @@
 import { useModelDetails } from '../../../../state/queries';
 import { useAppStore } from '../../../../state/store';
 import { Drawer } from '../../../../components/drawers/Drawer';
+import { formatDateForDisplay } from '../../../../lib/date';
 
 interface Props {
   model: string | null;
@@ -11,7 +12,7 @@ interface Props {
 }
 
 export function ModelDrawer({ model, onClose }: Props) {
-  const { dateFrom, dateTo, selectedProjectId } = useAppStore();
+  const { dateFrom, dateTo, selectedProjectId, dateFormat } = useAppStore();
   const { data, isLoading, error } = useModelDetails(model, dateFrom, dateTo, selectedProjectId);
 
   const formatTokens = (value: number) => {
@@ -75,7 +76,9 @@ export function ModelDrawer({ model, onClose }: Props) {
                       fontSize: 'var(--font-size-sm)',
                     }}
                   >
-                    <span style={{ color: 'var(--color-text-secondary)' }}>{date}</span>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>
+                      {formatDateForDisplay(date, dateFormat) || date}
+                    </span>
                     <span style={{ color: 'var(--color-text-muted)' }}>
                       {formatTokens(stats.tokens)} • {stats.messages} msgs
                     </span>
