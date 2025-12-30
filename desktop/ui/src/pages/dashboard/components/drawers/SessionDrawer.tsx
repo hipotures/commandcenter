@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function SessionDrawer({ sessionId, onClose }: Props) {
-  const { selectedProjectId, dateFormat } = useAppStore();
+  const { selectedProjectId, dateFormat, dateTimeFormat } = useAppStore();
   const { data, isLoading, error } = useSessionDetails(sessionId, selectedProjectId);
 
   const formatTokens = (value: number) => {
@@ -64,13 +64,13 @@ export function SessionDrawer({ sessionId, onClose }: Props) {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>Started:</span>
                 <span style={{ color: 'var(--color-text-primary)' }}>
-                  {formatTimeForDisplay(data.first_time, { includeSeconds: true }) || data.first_time}
+                  {formatTimeForDisplay(data.first_time, dateTimeFormat) || data.first_time}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>Ended:</span>
                 <span style={{ color: 'var(--color-text-primary)' }}>
-                  {formatTimeForDisplay(data.last_time, { includeSeconds: true }) || data.last_time}
+                  {formatTimeForDisplay(data.last_time, dateTimeFormat) || data.last_time}
                 </span>
               </div>
             </div>
@@ -120,7 +120,7 @@ export function SessionDrawer({ sessionId, onClose }: Props) {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                     <span style={{ color: 'var(--color-text-secondary)' }}>
-                      #{index + 1} • {formatTimeForDisplay(message.timestamp, { includeSeconds: true }) || message.timestamp}
+                      #{index + 1} • {formatTimeForDisplay(message.timestamp, dateTimeFormat) || message.timestamp}
                     </span>
                     <span style={{ color: 'var(--color-text-muted)' }}>{message.display_name}</span>
                   </div>

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { ChevronDown, MessageSquare } from 'lucide-react';
 import type { SessionsTableProps } from '../../types/dashboard';
 import { formatCurrency, formatNumber, truncateId } from '../../lib/format';
-import { formatDateHourForDisplay } from '../../lib/date';
+import { formatDateTimeForDisplay } from '../../lib/date';
 import { useAppStore } from '../../state/store';
 import { tokens } from '../../styles/tokens';
 
 export function SessionsTable({ sessions, isExporting = false }: SessionsTableProps) {
-  const { dateFormat } = useAppStore();
+  const { dateTimeFormat } = useAppStore();
   const [sessionLimit, setSessionLimit] = useState('10');
   const visibleSessions = sessions.slice(0, Number(sessionLimit));
   const rows = visibleSessions.flatMap((session) => {
@@ -207,7 +207,7 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
                   }}
                 >
                   {isSummary
-                    ? formatDateHourForDisplay(session.date, dateFormat) || (session.date ? session.date : 'N/A')
+                    ? formatDateTimeForDisplay(session.date, dateTimeFormat) || (session.date ? session.date : 'N/A')
                     : ''}
                 </td>
                 <td

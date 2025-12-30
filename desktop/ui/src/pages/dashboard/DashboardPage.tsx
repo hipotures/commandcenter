@@ -35,7 +35,7 @@ export function DashboardPage() {
     dateFrom,
     dateTo,
     visibleUsageAccounts,
-    dateFormat,
+    dateTimeFormat,
   } = useAppStore();
   const dateRange = { from: dateFrom, to: dateTo };
 
@@ -389,7 +389,7 @@ export function DashboardPage() {
           }}
         >
           <div style={{ fontSize: '13px', color: tokens.colors.textMuted, flex: '1 1 60%', minWidth: 0 }}>
-            <span>Last updated: {formatDateTimeForDisplay(new Date(), dateFormat, { includeSeconds: true })}</span>
+            <span>Last updated: {formatDateTimeForDisplay(new Date(), dateTimeFormat)}</span>
             <span data-export-exclude="true"> • DB Size: 52.3 MB • </span>
             <span data-export-exclude="true" style={{ color: tokens.colors.semanticSuccess, marginLeft: '8px' }}>
               ● Connected

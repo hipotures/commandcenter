@@ -17,11 +17,11 @@ export function UsageAccountsPanel({
   isLoading = false,
   errorMessage = null,
 }: UsageAccountsPanelProps) {
-  const { dateFormat } = useAppStore();
+  const { dateTimeFormat } = useAppStore();
 
   const formatResetTime = (localValue?: string | null, rawValue?: string | null): string => {
     if (localValue) {
-      return formatDateTimeForDisplay(localValue, dateFormat) || localValue;
+      return formatDateTimeForDisplay(localValue, dateTimeFormat) || localValue;
     }
     if (rawValue) {
       return rawValue;
@@ -33,7 +33,7 @@ export function UsageAccountsPanel({
     if (!value) {
       return '—';
     }
-    return formatDateTimeForDisplay(value, dateFormat) || value;
+    return formatDateTimeForDisplay(value, dateTimeFormat) || value;
   };
   if (!hasSelection) {
     return null;
@@ -48,7 +48,7 @@ export function UsageAccountsPanel({
       .sort((a, b) => b.parsed.getTime() - a.parsed.getTime());
 
     if (timestamps.length > 0) {
-      return formatDateTimeForDisplay(timestamps[0].parsed, dateFormat) || timestamps[0].raw;
+      return formatDateTimeForDisplay(timestamps[0].parsed, dateTimeFormat) || timestamps[0].raw;
     }
 
     const fallback = accounts.find((account) => account.captured_at_local)?.captured_at_local;

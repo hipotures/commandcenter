@@ -19,6 +19,7 @@ import {
   formatTimeForDisplay,
   startOfDay,
   type DateFormatId,
+  type DateTimeFormatId,
 } from '../../lib/date';
 import { useAppStore } from '../../state/store';
 import { tokens } from '../../styles/tokens';
@@ -31,6 +32,7 @@ type TimeTickProps = {
   showDateFor?: Set<number>;
   granularity: ActivityTimelineProps['granularity'];
   dateFormat: DateFormatId;
+  dateTimeFormat: DateTimeFormatId;
   tickCount?: number;
   index?: number;
 };
@@ -42,6 +44,7 @@ function TimeTick({
   showDateFor,
   granularity,
   dateFormat,
+  dateTimeFormat,
   tickCount,
   index,
 }: TimeTickProps) {
@@ -66,7 +69,7 @@ function TimeTick({
     return (
       <g transform={`translate(${x},${y})`}>
         <text textAnchor={textAnchor} dy={12} fontSize={11} fill={tokens.colors.textMuted}>
-          <tspan x={0}>{formatTimeForDisplay(date)}</tspan>
+          <tspan x={0}>{formatTimeForDisplay(date, dateTimeFormat)}</tspan>
           {showDate && <tspan x={0} dy={14}>{formatDateForDisplay(date, dateFormat)}</tspan>}
         </text>
       </g>
@@ -75,7 +78,7 @@ function TimeTick({
 
   const label =
     granularity === 'month'
-      ? formatDateForDisplay(date, dateFormat, ['month', 'year'])
+      ? formatDateForDisplay(date, dateFormat, { variant: 'month-year' })
       : formatDateForDisplay(date, dateFormat);
 
   return (
@@ -95,7 +98,7 @@ export function ActivityTimeline({
   limitResets,
   isExporting = false,
 }: ActivityTimelineProps) {
-  const { dateFormat } = useAppStore();
+  const { dateFormat, dateTimeFormat } = useAppStore();
   const [metric, setMetric] = useState<'messages' | 'tokens' | 'cost'>('messages');
   const [selectedLimitTypes, setSelectedLimitTypes] = useState<Set<string>>(new Set());
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -201,12 +204,12 @@ export function ActivityTimeline({
     }
     const date = new Date(value);
     if (granularity === 'month') {
-      return formatDateForDisplay(date, dateFormat, ['month', 'year']);
+      return formatDateForDisplay(date, dateFormat, { variant: 'month-year' });
     }
     if (granularity === 'week' || granularity === 'day') {
       return formatDateForDisplay(date, dateFormat);
     }
-    return formatDateTimeForDisplay(date, dateFormat);
+    return formatDateTimeForDisplay(date, dateTimeFormat);
   };
 
   return (
@@ -293,6 +296,7 @@ export function ActivityTimeline({
                       granularity={granularity}
                       showDateFor={showDateFor}
                       dateFormat={dateFormat}
+                      dateTimeFormat={dateTimeFormat}
                       tickCount={ticks.length}
                     />
                   )}
