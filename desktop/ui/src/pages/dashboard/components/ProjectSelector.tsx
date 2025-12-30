@@ -88,7 +88,7 @@ export function ProjectSelector() {
             background: tokens.colors.surface,
             border: `1px solid ${tokens.colors.surfaceBorder}`,
             borderRadius: '12px',
-            boxShadow: tokens.shadows.lg,
+            filter: tokens.shadows.dropLg,
             zIndex: 1000,
             minWidth: '200px',
             maxHeight: '400px',

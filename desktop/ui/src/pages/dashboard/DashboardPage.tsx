@@ -168,7 +168,7 @@ export function DashboardPage() {
               borderRadius: '18px',
               background: `linear-gradient(135deg, ${tokens.colors.surface}, ${tokens.colors.background})`,
               border: `1px solid ${tokens.colors.surfaceBorder}`,
-              boxShadow: tokens.shadows.md,
+              filter: tokens.shadows.dropMd,
               marginBottom: '24px',
             }}
           >

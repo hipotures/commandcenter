@@ -72,7 +72,7 @@ export function DateRangePicker({
             border: `1px solid ${tokens.colors.surfaceBorder}`,
             borderRadius: '12px',
             padding: '20px',
-            boxShadow: tokens.shadows.lg,
+            filter: tokens.shadows.dropLg,
             zIndex: 1000,
             width: '320px',
           }}

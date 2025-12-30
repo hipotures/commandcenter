@@ -23,7 +23,7 @@ export function SessionsTable({ sessions, isExporting = false }: SessionsTablePr
         border: `1px solid ${tokens.colors.surfaceBorder}`,
         borderRadius: '16px',
         padding: '24px',
-        boxShadow: tokens.shadows.md,
+        filter: tokens.shadows.dropMd,
       }}
     >
       <div

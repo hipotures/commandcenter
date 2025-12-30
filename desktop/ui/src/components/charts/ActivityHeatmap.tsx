@@ -118,7 +118,7 @@ export function ActivityHeatmap({ data, heatmapFrom, heatmapTo, selectedFrom, se
         border: `1px solid ${tokens.colors.surfaceBorder}`,
         borderRadius: '16px',
         padding: '24px',
-        boxShadow: tokens.shadows.md,
+        filter: tokens.shadows.dropMd,
       }}
     >
       <div

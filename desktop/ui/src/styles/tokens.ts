@@ -27,5 +27,8 @@ export const tokens = {
     sm: 'var(--shadow-sm)',
     md: 'var(--shadow-md)',
     lg: 'var(--shadow-lg)',
+    dropSm: 'var(--shadow-sm-drop)',
+    dropMd: 'var(--shadow-md-drop)',
+    dropLg: 'var(--shadow-lg-drop)',
   },
 };

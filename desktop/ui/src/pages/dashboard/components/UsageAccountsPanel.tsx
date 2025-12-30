@@ -142,7 +142,7 @@ export function UsageAccountsPanel({
         borderRadius: '18px',
         background: tokens.colors.surface,
         border: `1px solid ${tokens.colors.surfaceBorder}`,
-        boxShadow: tokens.shadows.md,
+        filter: tokens.shadows.dropMd,
       }}
     >
       <div

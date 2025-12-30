@@ -17,17 +17,17 @@ export function KPICard({
         border: `1px solid ${tokens.colors.surfaceBorder}`,
         borderRadius: '16px',
         padding: '24px',
-        boxShadow: tokens.shadows.md,
+        filter: tokens.shadows.dropMd,
         transition: 'all 0.3s ease',
         cursor: 'pointer',
       }}
       onMouseEnter={(event) => {
         event.currentTarget.style.transform = 'translateY(-2px)';
-        event.currentTarget.style.boxShadow = tokens.shadows.lg;
+        event.currentTarget.style.filter = tokens.shadows.dropLg;
       }}
       onMouseLeave={(event) => {
         event.currentTarget.style.transform = 'translateY(0)';
-        event.currentTarget.style.boxShadow = tokens.shadows.md;
+        event.currentTarget.style.filter = tokens.shadows.dropMd;
       }}
     >
       <div
