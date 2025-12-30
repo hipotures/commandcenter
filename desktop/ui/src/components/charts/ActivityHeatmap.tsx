@@ -199,15 +199,30 @@ export function ActivityHeatmap({ data, heatmapFrom, heatmapTo, selectedFrom, se
                           height: '14px',
                           borderRadius: '3px',
                           backgroundColor: tokens.colors.heatmap[level],
+                          position: 'relative',
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
                           transform: hoveredDay === day.date ? 'scale(1.3)' : 'scale(1)',
-                          outline: isInSelectedRange ? '1px solid var(--color-accent-primary-80)' : 'none',
-                          outlineOffset: '-1px',
                         }}
                         onMouseEnter={() => setHoveredDay(day.date)}
                         onMouseLeave={() => setHoveredDay(null)}
-                      />
+                      >
+                        {isInSelectedRange && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: '50%',
+                              width: '4px',
+                              height: '4px',
+                              borderRadius: '999px',
+                              backgroundColor: tokens.colors.heatmapDot,
+                              transform: 'translate(-50%, -50%)',
+                              pointerEvents: 'none',
+                            }}
+                          />
+                        )}
+                      </div>
                     );
                   })}
               </div>

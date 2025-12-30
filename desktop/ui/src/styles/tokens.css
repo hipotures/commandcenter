@@ -31,6 +31,7 @@
   --color-heatmap-4: #BC8873;
   --color-heatmap-5: #AE6E5B;
   --color-heatmap-6: #9A5647;
+  --color-heatmap-dot: rgba(43, 29, 19, 0.55);
 
   /* Spacing */
   --spacing-xs: 4px;
@@ -118,6 +119,7 @@
   --color-heatmap-4: #9A7D66;
   --color-heatmap-5: #BA9577;
   --color-heatmap-6: #DAA888;
+  --color-heatmap-dot: rgba(247, 241, 233, 0.55);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);

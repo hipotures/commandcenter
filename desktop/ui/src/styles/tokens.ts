@@ -21,6 +21,7 @@ export const tokens = {
       'var(--color-heatmap-5)',
       'var(--color-heatmap-6)',
     ],
+    heatmapDot: 'var(--color-heatmap-dot)',
   },
   shadows: {
     sm: 'var(--shadow-sm)',
