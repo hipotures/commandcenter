@@ -134,7 +134,7 @@ def recompute_hourly_aggregates(conn: sqlite3.Connection, datetime_hours: set[st
              session_count, total_tokens, total_cost_usd)
             SELECT
                 ?,
-                year,
+                MIN(year) as year,
                 CAST(SUBSTR(?, 6, 2) AS INTEGER) as month,
                 CAST(SUBSTR(?, 9, 2) AS INTEGER) as day,
                 CAST(? AS INTEGER) as hour,
@@ -145,6 +145,7 @@ def recompute_hourly_aggregates(conn: sqlite3.Connection, datetime_hours: set[st
                 SUM(COALESCE(cost_usd, 0)) as total_cost
             FROM message_entries
             WHERE date = ? AND SUBSTR(timestamp_local, 12, 2) = ?
+            HAVING COUNT(*) > 0
         """, (datetime_hour, datetime_hour, datetime_hour, hour_part, date_part, date_part, hour_part))
 
     conn.commit()

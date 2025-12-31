@@ -2,6 +2,37 @@ import type { DashboardBundle } from '../../types/api';
 import type { DashboardViewModel } from '../../types/dashboard';
 import { formatDurationRange } from '../../lib/time';
 
+const MODEL_VERSION_RE = /(\d+(?:\.\d+)?)/;
+
+const getModelSortKey = (displayName: string) => {
+  const trimmed = displayName.trim();
+  const match = trimmed.match(MODEL_VERSION_RE);
+  const version = match ? Number.parseFloat(match[1]) : Number.POSITIVE_INFINITY;
+  const name = match ? trimmed.replace(match[1], '').trim() : trimmed;
+
+  return {
+    version,
+    name: name.length > 0 ? name : trimmed,
+    label: trimmed,
+  };
+};
+
+const compareModelDisplay = (a: string, b: string) => {
+  const aKey = getModelSortKey(a);
+  const bKey = getModelSortKey(b);
+
+  if (aKey.version !== bKey.version) {
+    return aKey.version - bKey.version;
+  }
+
+  const nameCompare = aKey.name.localeCompare(bKey.name, undefined, { sensitivity: 'base' });
+  if (nameCompare !== 0) {
+    return nameCompare;
+  }
+
+  return aKey.label.localeCompare(bKey.label, undefined, { sensitivity: 'base' });
+};
+
 export const mapApiToViewModel = (apiData: DashboardBundle): DashboardViewModel => {
   const dailyActivity = apiData.daily_activity;
   const heatmapActivity = apiData.heatmap.daily_activity;
@@ -38,13 +69,15 @@ export const mapApiToViewModel = (apiData: DashboardBundle): DashboardViewModel 
           : 0,
     }));
   })();
-  const modelData = apiData.model_distribution.map((model) => ({
-    model: model.model,
-    displayName: model.display_name,
-    tokens: model.tokens,
-    messages: model.messages,
-    cost: model.cost,
-  }));
+  const modelData = apiData.model_distribution
+    .map((model) => ({
+      model: model.model,
+      displayName: model.display_name,
+      tokens: model.tokens,
+      messages: model.messages,
+      cost: model.cost,
+    }))
+    .sort((a, b) => compareModelDisplay(a.displayName, b.displayName));
   const sessions = apiData.recent_sessions.map((session) => ({
     id: session.session_id,
     messages: session.messages,
