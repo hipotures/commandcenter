@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 import re
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -25,6 +25,11 @@ def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
         (table_name,),
     )
     return cursor.fetchone() is not None
+
+
+def _get_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return {row[1] for row in rows}
 
 
 def _parse_iso(value: str | None) -> datetime | None:
@@ -51,14 +56,20 @@ def _parse_resets_raw(
         tz_name = match.group(2).strip()
 
     dt = None
-    for fmt in (
-        "%b %d, %Y, %I:%M%p",
-        "%b %d, %Y, %I%p",
-        "%b %d, %I:%M%p",
-        "%b %d, %I%p",
+    has_date = False
+    has_year = False
+    for fmt, fmt_has_date, fmt_has_year in (
+        ("%b %d, %Y, %I:%M%p", True, True),
+        ("%b %d, %Y, %I%p", True, True),
+        ("%b %d, %I:%M%p", True, False),
+        ("%b %d, %I%p", True, False),
+        ("%I:%M%p", False, False),
+        ("%I%p", False, False),
     ):
         try:
             dt = datetime.strptime(text, fmt)
+            has_date = fmt_has_date
+            has_year = fmt_has_year
             break
         except ValueError:
             continue
@@ -67,8 +78,13 @@ def _parse_resets_raw(
         return None
 
     reference_dt = reference or datetime.now().astimezone()
-    missing_year = dt.year == 1900
-    if missing_year:
+    if not has_date:
+        dt = dt.replace(
+            year=reference_dt.year,
+            month=reference_dt.month,
+            day=reference_dt.day,
+        )
+    elif not has_year:
         dt = dt.replace(year=reference_dt.year)
 
     if tz_name:
@@ -82,7 +98,9 @@ def _parse_resets_raw(
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=reference_dt.tzinfo)
 
-    if missing_year and dt < reference_dt:
+    if not has_date and dt < reference_dt:
+        dt = dt + timedelta(days=1)
+    elif not has_year and dt < reference_dt:
         dt = dt.replace(year=reference_dt.year + 1)
 
     return dt.astimezone().isoformat()
@@ -119,18 +137,25 @@ def _fetch_latest_from_path(db_path: str) -> list[dict[str, Any]]:
             if not _table_exists(conn, "cc_usage_events"):
                 return []
 
+            columns = _get_columns(conn, "cc_usage_events")
+
+            def select_column(name: str) -> str:
+                return name if name in columns else f"NULL AS {name}"
+
             rows = conn.execute(
-                """
+                f"""
                 SELECT
                     id,
                     email,
                     captured_at_local,
-                    current_session_used_pct,
-                    current_session_used_raw,
-                    current_week_used_pct,
-                    current_week_used_raw,
-                    current_week_resets_local,
-                    current_week_resets_raw
+                    {select_column("current_session_used_pct")},
+                    {select_column("current_session_used_raw")},
+                    {select_column("current_session_resets_local")},
+                    {select_column("current_session_resets_raw")},
+                    {select_column("current_week_used_pct")},
+                    {select_column("current_week_used_raw")},
+                    {select_column("current_week_resets_local")},
+                    {select_column("current_week_resets_raw")}
                 FROM cc_usage_events
                 WHERE email IS NOT NULL AND email != ''
                 AND id IN (
@@ -145,11 +170,17 @@ def _fetch_latest_from_path(db_path: str) -> list[dict[str, Any]]:
 
             accounts: list[dict[str, Any]] = []
             for row in rows:
-                resets_local = row["current_week_resets_local"]
-                if not resets_local:
-                    captured_at = _parse_iso(row["captured_at_local"])
-                    resets_local = _parse_resets_raw(
+                captured_at = _parse_iso(row["captured_at_local"])
+                week_resets_local = row["current_week_resets_local"]
+                if not week_resets_local:
+                    week_resets_local = _parse_resets_raw(
                         row["current_week_resets_raw"],
+                        captured_at,
+                    )
+                session_resets_local = row["current_session_resets_local"]
+                if not session_resets_local:
+                    session_resets_local = _parse_resets_raw(
+                        row["current_session_resets_raw"],
                         captured_at,
                     )
                 accounts.append(
@@ -158,9 +189,11 @@ def _fetch_latest_from_path(db_path: str) -> list[dict[str, Any]]:
                         "captured_at_local": row["captured_at_local"],
                         "current_session_used_pct": row["current_session_used_pct"],
                         "current_session_used_raw": row["current_session_used_raw"],
+                        "current_session_resets_local": session_resets_local,
+                        "current_session_resets_raw": row["current_session_resets_raw"],
                         "current_week_used_pct": row["current_week_used_pct"],
                         "current_week_used_raw": row["current_week_used_raw"],
-                        "current_week_resets_local": resets_local,
+                        "current_week_resets_local": week_resets_local,
                         "current_week_resets_raw": row["current_week_resets_raw"],
                     }
                 )

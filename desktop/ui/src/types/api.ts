@@ -213,6 +213,8 @@ export interface UsageAccount {
   captured_at_local: string | null;
   current_session_used_pct: number | null;
   current_session_used_raw: string | null;
+  current_session_resets_local: string | null;
+  current_session_resets_raw: string | null;
   current_week_used_pct: number | null;
   current_week_used_raw: string | null;
   current_week_resets_local: string | null;

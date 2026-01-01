@@ -5,7 +5,7 @@ import os
 import re
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 
@@ -30,22 +30,33 @@ def parse_resets_timestamp(raw_value, reference_dt):
         tz_name = match.group(2).strip()
 
     dt = None
-    for fmt in (
-        "%b %d, %Y, %I:%M%p",
-        "%b %d, %Y, %I%p",
-        "%b %d, %I:%M%p",
-        "%b %d, %I%p",
+    has_date = False
+    has_year = False
+    for fmt, fmt_has_date, fmt_has_year in (
+        ("%b %d, %Y, %I:%M%p", True, True),
+        ("%b %d, %Y, %I%p", True, True),
+        ("%b %d, %I:%M%p", True, False),
+        ("%b %d, %I%p", True, False),
+        ("%I:%M%p", False, False),
+        ("%I%p", False, False),
     ):
         try:
             dt = datetime.strptime(text, fmt)
+            has_date = fmt_has_date
+            has_year = fmt_has_year
             break
         except ValueError:
             continue
     if dt is None:
         return (None, None, None, tz_name)
 
-    missing_year = dt.year == 1900
-    if missing_year:
+    if not has_date:
+        dt = dt.replace(
+            year=reference_dt.year,
+            month=reference_dt.month,
+            day=reference_dt.day,
+        )
+    elif not has_year:
         dt = dt.replace(year=reference_dt.year)
 
     if tz_name:
@@ -59,11 +70,19 @@ def parse_resets_timestamp(raw_value, reference_dt):
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=reference_dt.tzinfo)
 
-    if missing_year and dt < reference_dt:
+    if not has_date and dt < reference_dt:
+        dt = dt + timedelta(days=1)
+    elif not has_year and dt < reference_dt:
         dt = dt.replace(year=reference_dt.year + 1)
 
     dt_utc = dt.astimezone(timezone.utc)
     return (dt.isoformat(), dt_utc.isoformat(), int(dt_utc.timestamp()), tz_name)
+
+
+def ensure_column(conn, table, column, definition):
+    columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def ensure_schema(conn):
@@ -76,6 +95,11 @@ def ensure_schema(conn):
             email TEXT,
             current_session_used_pct INTEGER,
             current_session_used_raw TEXT,
+            current_session_resets_raw TEXT,
+            current_session_resets_local TEXT,
+            current_session_resets_utc TEXT,
+            current_session_resets_epoch INTEGER,
+            current_session_resets_tz TEXT,
             current_week_used_pct INTEGER,
             current_week_used_raw TEXT,
             current_week_resets_raw TEXT,
@@ -96,6 +120,11 @@ def ensure_schema(conn):
         "CREATE INDEX IF NOT EXISTS idx_cc_usage_events_email "
         "ON cc_usage_events(email)"
     )
+    ensure_column(conn, "cc_usage_events", "current_session_resets_raw", "TEXT")
+    ensure_column(conn, "cc_usage_events", "current_session_resets_local", "TEXT")
+    ensure_column(conn, "cc_usage_events", "current_session_resets_utc", "TEXT")
+    ensure_column(conn, "cc_usage_events", "current_session_resets_epoch", "INTEGER")
+    ensure_column(conn, "cc_usage_events", "current_session_resets_tz", "TEXT")
     conn.commit()
 
 
@@ -154,6 +183,9 @@ def main():
     current_session_used_raw = (
         payload.get("current_session", {}) or {}
     ).get("used")
+    current_session_resets_raw = (
+        payload.get("current_session", {}) or {}
+    ).get("resets")
     current_week_used_raw = (
         payload.get("current_week_all_models", {}) or {}
     ).get("used")
@@ -163,6 +195,12 @@ def main():
 
     current_session_used_pct = parse_used_percent(current_session_used_raw)
     current_week_used_pct = parse_used_percent(current_week_used_raw)
+    (
+        current_session_resets_local,
+        current_session_resets_utc,
+        current_session_resets_epoch,
+        current_session_resets_tz,
+    ) = parse_resets_timestamp(current_session_resets_raw, now_local)
     (
         current_week_resets_local,
         current_week_resets_utc,
@@ -186,6 +224,11 @@ def main():
                 email,
                 current_session_used_pct,
                 current_session_used_raw,
+                current_session_resets_raw,
+                current_session_resets_local,
+                current_session_resets_utc,
+                current_session_resets_epoch,
+                current_session_resets_tz,
                 current_week_used_pct,
                 current_week_used_raw,
                 current_week_resets_raw,
@@ -195,7 +238,7 @@ def main():
                 current_week_resets_tz,
                 logfile,
                 raw_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 now_utc.isoformat(),
@@ -203,6 +246,11 @@ def main():
                 email,
                 current_session_used_pct,
                 current_session_used_raw,
+                current_session_resets_raw,
+                current_session_resets_local,
+                current_session_resets_utc,
+                current_session_resets_epoch,
+                current_session_resets_tz,
                 current_week_used_pct,
                 current_week_used_raw,
                 current_week_resets_raw,

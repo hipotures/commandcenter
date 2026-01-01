@@ -107,9 +107,10 @@ export function UsageAccountsPanel({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'minmax(220px, 2fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr) minmax(170px, 1fr)',
+            gridTemplateColumns:
+              'minmax(220px, 2fr) minmax(110px, 0.8fr) minmax(140px, 1fr) minmax(110px, 0.8fr) minmax(170px, 1fr)',
             gap: '12px',
-            minWidth: '560px',
+            minWidth: '700px',
             padding: '10px 0',
             borderBottom: `1px solid ${tokens.colors.surfaceBorder}`,
             color: tokens.colors.textMuted,
@@ -120,6 +121,7 @@ export function UsageAccountsPanel({
         >
           <div>Account</div>
           <div>5h usage</div>
+          <div>5h reset</div>
           <div>Week usage</div>
           <div>Week reset</div>
         </div>
@@ -128,9 +130,10 @@ export function UsageAccountsPanel({
             key={account.email}
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(220px, 2fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr) minmax(170px, 1fr)',
+              gridTemplateColumns:
+                'minmax(220px, 2fr) minmax(110px, 0.8fr) minmax(140px, 1fr) minmax(110px, 0.8fr) minmax(170px, 1fr)',
               gap: '12px',
-              minWidth: '560px',
+              minWidth: '700px',
               padding: '12px 0',
               borderBottom: `1px solid ${tokens.colors.surfaceBorder}`,
               color: tokens.colors.textPrimary,
@@ -140,6 +143,9 @@ export function UsageAccountsPanel({
             <div style={{ fontWeight: 600 }}>{maskEmail(account.email)}</div>
             <div style={{ color: getUsageColor(account.current_session_used_pct) }}>
               {formatUsageValue(account.current_session_used_pct, account.current_session_used_raw)}
+            </div>
+            <div>
+              {formatResetTime(account.current_session_resets_local, account.current_session_resets_raw)}
             </div>
             <div style={{ color: getUsageColor(account.current_week_used_pct) }}>
               {formatUsageValue(account.current_week_used_pct, account.current_week_used_raw)}

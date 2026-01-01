@@ -13,6 +13,11 @@ Table: `cc_usage_events`
 - `email` TEXT
 - `current_session_used_pct` INTEGER (parsed percent)
 - `current_session_used_raw` TEXT
+- `current_session_resets_raw` TEXT
+- `current_session_resets_local` TEXT (ISO 8601)
+- `current_session_resets_utc` TEXT (ISO 8601)
+- `current_session_resets_epoch` INTEGER (unix seconds)
+- `current_session_resets_tz` TEXT (time zone name, if present)
 - `current_week_used_pct` INTEGER (parsed percent)
 - `current_week_used_raw` TEXT
 - `current_week_resets_raw` TEXT

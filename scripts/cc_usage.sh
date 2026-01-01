@@ -172,13 +172,16 @@ set +e
 json_output="$(
   awk -v logfile="$logfile" -v email="$email" '
 function trim(s){ sub(/^[[:space:]]+/,"",s); sub(/[[:space:]]+$/,"",s); return s }
-BEGIN{ mode=""; s_used=""; w_used=""; w_reset="" }
+BEGIN{ mode=""; s_used=""; s_reset=""; w_used=""; w_reset="" }
 {
   l=trim($0); if(l=="") next
   if(l ~ /^Current session/) { mode="S"; next }
   if(l ~ /^Current week/)    { mode="W"; next }
 
   if(mode=="S" && s_used=="" && match(l,/([0-9]{1,3})%[[:space:]]*used/)) { s_used=substr(l,RSTART,RLENGTH); next }
+  if(mode=="S" && s_reset=="" && l ~ /^Resets[[:space:]]+/) {
+    sub(/^Resets[[:space:]]+/,"",l); s_reset=l; next
+  }
   if(mode=="W" && w_used=="" && match(l,/([0-9]{1,3})%[[:space:]]*used/)) { w_used=substr(l,RSTART,RLENGTH); next }
 
   if(mode=="W" && w_reset=="" && l ~ /^Resets[[:space:]]+/) {
@@ -187,12 +190,12 @@ BEGIN{ mode=""; s_used=""; w_used=""; w_reset="" }
 }
 END{
   if(s_used=="" || w_used==""){
-    printf("{\"error\":\"failed_to_parse_usage\",\"current_session_used\":\"%s\",\"current_week_used\":\"%s\",\"current_week_resets\":\"%s\",\"email\":\"%s\",\"logfile\":\"%s\"}\n",
-      s_used, w_used, w_reset, email, logfile)
+    printf("{\"error\":\"failed_to_parse_usage\",\"current_session_used\":\"%s\",\"current_session_resets\":\"%s\",\"current_week_used\":\"%s\",\"current_week_resets\":\"%s\",\"email\":\"%s\",\"logfile\":\"%s\"}\n",
+      s_used, s_reset, w_used, w_reset, email, logfile)
     exit 1
   }
-  printf("{\"current_session\":{\"used\":\"%s\"},\"current_week_all_models\":{\"used\":\"%s\",\"resets\":\"%s\"},\"email\":\"%s\",\"logfile\":\"%s\"}\n",
-    s_used, w_used, w_reset, email, logfile)
+  printf("{\"current_session\":{\"used\":\"%s\",\"resets\":\"%s\"},\"current_week_all_models\":{\"used\":\"%s\",\"resets\":\"%s\"},\"email\":\"%s\",\"logfile\":\"%s\"}\n",
+    s_used, s_reset, w_used, w_reset, email, logfile)
 }
 ' "$logfile"
 )"

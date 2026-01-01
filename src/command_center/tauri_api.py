@@ -276,6 +276,8 @@ def get_usage_accounts() -> dict:
                     "email": "...",
                     "captured_at_local": "...",
                     "current_session_used_raw": "...",
+                    "current_session_resets_local": "...",
+                    "current_session_resets_raw": "...",
                     "current_week_used_raw": "...",
                     "current_week_resets_local": "...",
                     "current_week_resets_raw": "...",
