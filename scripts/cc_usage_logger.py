@@ -5,8 +5,15 @@ import os
 import re
 import sqlite3
 import sys
+import warnings
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+
+warnings.filterwarnings(
+    "ignore",
+    category=DeprecationWarning,
+    message=r"Parsing dates involving a day of month without a year specified.*",
+)
 
 
 def parse_used_percent(raw_value):
