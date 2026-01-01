@@ -36,7 +36,10 @@ def _parse_iso(value: str | None) -> datetime | None:
         return None
 
 
-def _parse_resets_raw(raw_value: str | None) -> str | None:
+def _parse_resets_raw(
+    raw_value: str | None,
+    reference: datetime | None = None,
+) -> str | None:
     if not raw_value:
         return None
 
@@ -48,7 +51,12 @@ def _parse_resets_raw(raw_value: str | None) -> str | None:
         tz_name = match.group(2).strip()
 
     dt = None
-    for fmt in ("%b %d, %Y, %I:%M%p", "%b %d, %Y, %I%p"):
+    for fmt in (
+        "%b %d, %Y, %I:%M%p",
+        "%b %d, %Y, %I%p",
+        "%b %d, %I:%M%p",
+        "%b %d, %I%p",
+    ):
         try:
             dt = datetime.strptime(text, fmt)
             break
@@ -57,6 +65,11 @@ def _parse_resets_raw(raw_value: str | None) -> str | None:
 
     if dt is None:
         return None
+
+    reference_dt = reference or datetime.now().astimezone()
+    missing_year = dt.year == 1900
+    if missing_year:
+        dt = dt.replace(year=reference_dt.year)
 
     if tz_name:
         try:
@@ -67,7 +80,10 @@ def _parse_resets_raw(raw_value: str | None) -> str | None:
             dt = dt.replace(tzinfo=tz)
 
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=datetime.now().astimezone().tzinfo)
+        dt = dt.replace(tzinfo=reference_dt.tzinfo)
+
+    if missing_year and dt < reference_dt:
+        dt = dt.replace(year=reference_dt.year + 1)
 
     return dt.astimezone().isoformat()
 
@@ -131,7 +147,11 @@ def _fetch_latest_from_path(db_path: str) -> list[dict[str, Any]]:
             for row in rows:
                 resets_local = row["current_week_resets_local"]
                 if not resets_local:
-                    resets_local = _parse_resets_raw(row["current_week_resets_raw"])
+                    captured_at = _parse_iso(row["captured_at_local"])
+                    resets_local = _parse_resets_raw(
+                        row["current_week_resets_raw"],
+                        captured_at,
+                    )
                 accounts.append(
                     {
                         "email": row["email"],

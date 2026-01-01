@@ -18,7 +18,7 @@ def parse_used_percent(raw_value):
     return int(match.group(1))
 
 
-def parse_resets_timestamp(raw_value, fallback_tz):
+def parse_resets_timestamp(raw_value, reference_dt):
     if not raw_value:
         return (None, None, None, None)
 
@@ -30,7 +30,12 @@ def parse_resets_timestamp(raw_value, fallback_tz):
         tz_name = match.group(2).strip()
 
     dt = None
-    for fmt in ("%b %d, %Y, %I:%M%p", "%b %d, %Y, %I%p"):
+    for fmt in (
+        "%b %d, %Y, %I:%M%p",
+        "%b %d, %Y, %I%p",
+        "%b %d, %I:%M%p",
+        "%b %d, %I%p",
+    ):
         try:
             dt = datetime.strptime(text, fmt)
             break
@@ -38,6 +43,10 @@ def parse_resets_timestamp(raw_value, fallback_tz):
             continue
     if dt is None:
         return (None, None, None, tz_name)
+
+    missing_year = dt.year == 1900
+    if missing_year:
+        dt = dt.replace(year=reference_dt.year)
 
     if tz_name:
         try:
@@ -48,7 +57,10 @@ def parse_resets_timestamp(raw_value, fallback_tz):
             dt = dt.replace(tzinfo=tz)
 
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=fallback_tz)
+        dt = dt.replace(tzinfo=reference_dt.tzinfo)
+
+    if missing_year and dt < reference_dt:
+        dt = dt.replace(year=reference_dt.year + 1)
 
     dt_utc = dt.astimezone(timezone.utc)
     return (dt.isoformat(), dt_utc.isoformat(), int(dt_utc.timestamp()), tz_name)
@@ -156,7 +168,7 @@ def main():
         current_week_resets_utc,
         current_week_resets_epoch,
         current_week_resets_tz,
-    ) = parse_resets_timestamp(current_week_resets_raw, now_local.tzinfo)
+    ) = parse_resets_timestamp(current_week_resets_raw, now_local)
 
     raw_json = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
 
