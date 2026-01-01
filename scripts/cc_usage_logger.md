@@ -11,6 +11,7 @@ Table: `cc_usage_events`
 - `captured_at_utc` TEXT (ISO 8601)
 - `captured_at_local` TEXT (ISO 8601)
 - `email` TEXT
+- `usage_snapshot_key` TEXT (dedupe key: email + used % values)
 - `current_session_used_pct` INTEGER (parsed percent)
 - `current_session_used_raw` TEXT
 - `current_session_resets_raw` TEXT
@@ -31,6 +32,9 @@ Table: `cc_usage_events`
 Indexes:
 - `idx_cc_usage_events_captured_at_utc` on `captured_at_utc`
 - `idx_cc_usage_events_email` on `email`
+- `idx_cc_usage_events_usage_snapshot` (UNIQUE) on `usage_snapshot_key`
+
+Note: Reset timestamps are rounded to the nearest hour when stored in the `*_local`/`*_utc`/`*_epoch` columns; raw text remains unchanged.
 
 ## Usage
 

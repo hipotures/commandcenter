@@ -75,6 +75,8 @@ def parse_resets_timestamp(raw_value, reference_dt):
     elif not has_year and dt < reference_dt:
         dt = dt.replace(year=reference_dt.year + 1)
 
+    dt = (dt + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)
+
     dt_utc = dt.astimezone(timezone.utc)
     return (dt.isoformat(), dt_utc.isoformat(), int(dt_utc.timestamp()), tz_name)
 
@@ -85,6 +87,29 @@ def ensure_column(conn, table, column, definition):
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
+
+def build_usage_snapshot_key(
+    email,
+    session_used_pct,
+    session_used_raw,
+    week_used_pct,
+    week_used_raw,
+):
+    if not email:
+        return None
+
+    def normalize(value, raw_value):
+        if value is not None:
+            return str(value)
+        if raw_value:
+            return raw_value.strip()
+        return ""
+
+    session_key = normalize(session_used_pct, session_used_raw)
+    week_key = normalize(week_used_pct, week_used_raw)
+    return f"{email}|{session_key}|{week_key}"
+
+
 def ensure_schema(conn):
     conn.execute(
         """
@@ -93,6 +118,7 @@ def ensure_schema(conn):
             captured_at_utc TEXT NOT NULL,
             captured_at_local TEXT NOT NULL,
             email TEXT,
+            usage_snapshot_key TEXT,
             current_session_used_pct INTEGER,
             current_session_used_raw TEXT,
             current_session_resets_raw TEXT,
@@ -125,6 +151,11 @@ def ensure_schema(conn):
     ensure_column(conn, "cc_usage_events", "current_session_resets_utc", "TEXT")
     ensure_column(conn, "cc_usage_events", "current_session_resets_epoch", "INTEGER")
     ensure_column(conn, "cc_usage_events", "current_session_resets_tz", "TEXT")
+    ensure_column(conn, "cc_usage_events", "usage_snapshot_key", "TEXT")
+    try:
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_cc_usage_events_usage_snapshot ON cc_usage_events(usage_snapshot_key)")
+    except sqlite3.IntegrityError:
+        pass
     conn.commit()
 
 
@@ -208,6 +239,14 @@ def main():
         current_week_resets_tz,
     ) = parse_resets_timestamp(current_week_resets_raw, now_local)
 
+    usage_snapshot_key = build_usage_snapshot_key(
+        email,
+        current_session_used_pct,
+        current_session_used_raw,
+        current_week_used_pct,
+        current_week_used_raw,
+    )
+
     raw_json = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
 
     db_dir = os.path.dirname(os.path.abspath(args.db))
@@ -218,7 +257,7 @@ def main():
         ensure_schema(conn)
         conn.execute(
             """
-            INSERT INTO cc_usage_events (
+            INSERT OR IGNORE INTO cc_usage_events (
                 captured_at_utc,
                 captured_at_local,
                 email,
@@ -236,9 +275,10 @@ def main():
                 current_week_resets_utc,
                 current_week_resets_epoch,
                 current_week_resets_tz,
+                usage_snapshot_key,
                 logfile,
                 raw_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 now_utc.isoformat(),
@@ -258,6 +298,7 @@ def main():
                 current_week_resets_utc,
                 current_week_resets_epoch,
                 current_week_resets_tz,
+                usage_snapshot_key,
                 logfile,
                 raw_json,
             ),

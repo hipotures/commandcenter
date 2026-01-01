@@ -32,6 +32,10 @@ def _get_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
     return {row[1] for row in rows}
 
 
+def _round_to_nearest_hour(value: datetime) -> datetime:
+    return (value + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)
+
+
 def _parse_iso(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -102,6 +106,8 @@ def _parse_resets_raw(
         dt = dt + timedelta(days=1)
     elif not has_year and dt < reference_dt:
         dt = dt.replace(year=reference_dt.year + 1)
+
+    dt = _round_to_nearest_hour(dt)
 
     return dt.astimezone().isoformat()
 
