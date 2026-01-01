@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Coins, Flame, MessageSquare, Users, Zap } from 'lucide-react';
 import { ActivityHeatmap } from '../../components/charts/ActivityHeatmap';
 import { ActivityTimeline } from '../../components/charts/ActivityTimeline';
@@ -25,6 +26,7 @@ export function DashboardPage() {
   const defaultFrom = `${now.getFullYear()}-01-01`;
   const [shouldRefresh, setShouldRefresh] = useState(false);
   const dashboardRef = useRef<HTMLElement | null>(null);
+  const queryClient = useQueryClient();
 
   const {
     settingsOpen,
@@ -62,6 +64,7 @@ export function DashboardPage() {
 
   const handleRefresh = () => {
     setShouldRefresh(true);
+    queryClient.invalidateQueries({ queryKey: ['usage-accounts'] });
     setTimeout(() => setShouldRefresh(false), 100);
   };
 
