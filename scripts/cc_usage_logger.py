@@ -31,6 +31,47 @@ def parse_resets_timestamp(raw_value, reference_dt):
 
     text = raw_value.strip()
     tz_name = None
+
+    # Handle web format: "in X hr Y min" or "in X min"
+    match_relative = re.match(r"^in\s+(?:(\d+)\s*hr?)?\s*(?:(\d+)\s*min)?", text, re.IGNORECASE)
+    if match_relative:
+        hours = int(match_relative.group(1)) if match_relative.group(1) else 0
+        minutes = int(match_relative.group(2)) if match_relative.group(2) else 0
+        dt = reference_dt + timedelta(hours=hours, minutes=minutes)
+        dt = (dt + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)
+        dt_utc = dt.astimezone(timezone.utc)
+        tz_name = str(reference_dt.tzinfo)
+        return (dt.isoformat(), dt_utc.isoformat(), int(dt_utc.timestamp()), tz_name)
+
+    # Handle web format: "Mon 12:00 PM", "Tue 11:59 PM"
+    match_weekday = re.match(r"^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2}):(\d{2})\s*(AM|PM)", text, re.IGNORECASE)
+    if match_weekday:
+        weekday_abbr = match_weekday.group(1)
+        hour = int(match_weekday.group(2))
+        minute = int(match_weekday.group(3))
+        ampm = match_weekday.group(4).upper()
+
+        if ampm == "PM" and hour != 12:
+            hour += 12
+        elif ampm == "AM" and hour == 12:
+            hour = 0
+
+        # Find next occurrence of this weekday
+        weekdays = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
+        target_weekday = weekdays[weekday_abbr]
+        current_weekday = reference_dt.weekday()
+        days_ahead = target_weekday - current_weekday
+        if days_ahead <= 0:
+            days_ahead += 7
+
+        dt = reference_dt + timedelta(days=days_ahead)
+        dt = dt.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        dt = (dt + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)
+        dt_utc = dt.astimezone(timezone.utc)
+        tz_name = str(reference_dt.tzinfo)
+        return (dt.isoformat(), dt_utc.isoformat(), int(dt_utc.timestamp()), tz_name)
+
+    # Handle CLI format: extract timezone from parentheses
     match = re.match(r"^(.*)\s+\(([^)]+)\)\s*$", text)
     if match:
         text = match.group(1).strip()

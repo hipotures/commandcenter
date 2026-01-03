@@ -76,6 +76,64 @@ function formatTimestamp(date) {
   ].join('');
 }
 
+function convertWebResetFormat(webFormat) {
+  if (!webFormat) return '';
+
+  const now = new Date();
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  // Handle "in X hr Y min" format
+  const relativeMatch = webFormat.match(/^in\s+(?:(\d+)\s*hr?)?\s*(?:(\d+)\s*min)?/i);
+  if (relativeMatch) {
+    const hours = relativeMatch[1] ? parseInt(relativeMatch[1]) : 0;
+    const minutes = relativeMatch[2] ? parseInt(relativeMatch[2]) : 0;
+    const resetDate = new Date(now.getTime() + hours * 3600000 + minutes * 60000);
+
+    let hour = resetDate.getHours();
+    const minute = resetDate.getMinutes();
+    const ampm = hour >= 12 ? 'pm' : 'am';
+    hour = hour % 12 || 12;
+
+    const minStr = minute.toString().padStart(2, '0');
+    return `${hour}:${minStr}${ampm} (${tz})`;
+  }
+
+  // Handle "Mon 12:00 PM" format
+  const weekdayMatch = webFormat.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (weekdayMatch) {
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const targetDay = weekdays.indexOf(weekdayMatch[1]);
+    let hour = parseInt(weekdayMatch[2]);
+    const minute = parseInt(weekdayMatch[3]);
+    const ampm = weekdayMatch[4].toLowerCase();
+
+    if (ampm === 'pm' && hour !== 12) hour += 12;
+    if (ampm === 'am' && hour === 12) hour = 0;
+
+    const currentDay = now.getDay();
+    let daysAhead = targetDay - currentDay;
+    if (daysAhead <= 0) daysAhead += 7;
+
+    const resetDate = new Date(now);
+    resetDate.setDate(now.getDate() + daysAhead);
+    resetDate.setHours(hour, minute, 0, 0);
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[resetDate.getMonth()];
+    const day = resetDate.getDate();
+
+    let displayHour = resetDate.getHours();
+    const displayAmpm = displayHour >= 12 ? 'pm' : 'am';
+    displayHour = displayHour % 12 || 12;
+    const minStr = resetDate.getMinutes().toString().padStart(2, '0');
+
+    return `${month} ${day}, ${displayHour}:${minStr}${displayAmpm} (${tz})`;
+  }
+
+  // Already in CLI format or unknown - return as is
+  return webFormat;
+}
+
 function parseUsageText(text) {
   const lines = text
     .split(/\r?\n/)
@@ -141,9 +199,9 @@ function parseUsageText(text) {
 
   return {
     sessionUsed,
-    sessionResets,
+    sessionResets: convertWebResetFormat(sessionResets),
     weeklyUsed,
-    weeklyResets,
+    weeklyResets: convertWebResetFormat(weeklyResets),
   };
 }
 
