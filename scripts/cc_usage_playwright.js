@@ -147,12 +147,62 @@ function parseUsageText(text) {
   };
 }
 
-function printError(error, logfile) {
+function printError(error, logfile, extra) {
   const payload = {
     error,
     logfile,
   };
+  if (extra && typeof extra === 'object') {
+    Object.assign(payload, extra);
+  }
   console.log(JSON.stringify(payload));
+}
+
+async function captureLoginSnapshot(page, ts) {
+  const htmlPath = path.join(OUTDIR, `login-snapshot-${ts}.html`);
+  const pngPath = path.join(OUTDIR, `login-snapshot-${ts}.png`);
+  const content = await page.content();
+  fs.writeFileSync(htmlPath, content, 'utf8');
+  try {
+    await page.screenshot({ path: pngPath, fullPage: true });
+  } catch (err) {
+    return { htmlPath, pngPath: null };
+  }
+  return { htmlPath, pngPath };
+}
+
+async function detectNotLoggedIn(page) {
+  const url = page.url();
+  if (/\/login\b|\/signup\b/i.test(url)) {
+    return { reason: 'login_redirect', url };
+  }
+  const emailLocator = page.locator(
+    'input[type="email"], input[autocomplete="email"], input[aria-label="Email"]',
+  );
+  if ((await emailLocator.count()) > 0) {
+    return { reason: 'login_form', url };
+  }
+  const loginText = page.getByText('Continue with Google');
+  if ((await loginText.count()) > 0) {
+    return { reason: 'login_text', url };
+  }
+  return null;
+}
+
+async function waitForEmailOrLogin(page, timeoutMs) {
+  const emailInput = page.getByLabel(EMAIL_LABEL);
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const notLoggedIn = await detectNotLoggedIn(page);
+    if (notLoggedIn) {
+      return { notLoggedIn };
+    }
+    if ((await emailInput.count()) > 0) {
+      return { emailInput };
+    }
+    await page.waitForTimeout(250);
+  }
+  return { timeout: true };
 }
 
 async function disconnectBrowser(browser) {
@@ -188,9 +238,27 @@ async function main() {
   try {
     log(`Navigating to ${EMAIL_URL}`);
     await page.goto(EMAIL_URL, { waitUntil: 'domcontentloaded', timeout: TIMEOUT_MS });
-    const emailInput = page.getByLabel(EMAIL_LABEL);
-    await emailInput.waitFor({ timeout: TIMEOUT_MS });
-    const email = (await emailInput.inputValue()).trim();
+    const emailState = await waitForEmailOrLogin(page, TIMEOUT_MS);
+    if (emailState.notLoggedIn) {
+      const snapshot = await captureLoginSnapshot(page, ts);
+      log('Not logged in; login page detected.');
+      printError('not_logged_in', snapshot.htmlPath, {
+        snapshot_html: snapshot.htmlPath,
+        snapshot_png: snapshot.pngPath,
+        login_url: emailState.notLoggedIn.url,
+        reason: emailState.notLoggedIn.reason,
+      });
+      process.exit(1);
+    }
+    if (emailState.timeout) {
+      const snapshot = await captureLoginSnapshot(page, ts);
+      printError('failed_to_parse_email', snapshot.htmlPath, {
+        snapshot_html: snapshot.htmlPath,
+        snapshot_png: snapshot.pngPath,
+      });
+      process.exit(1);
+    }
+    const email = (await emailState.emailInput.inputValue()).trim();
     if (!email) {
       printError('failed_to_parse_email', logfile);
       process.exit(1);
