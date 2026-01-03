@@ -119,6 +119,10 @@ def send_telegram_log(title: str, text: str) -> None:
 class TelegramErrorHandler(logging.Handler):
     """Logging handler that sends ERROR level messages to Telegram on state change."""
 
+    def __init__(self, level=logging.ERROR, verbose=False):
+        super().__init__(level)
+        self.verbose = verbose
+
     def emit(self, record: logging.LogRecord) -> None:
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -129,30 +133,28 @@ class TelegramErrorHandler(logging.Handler):
             alert_type = should_send_alert("error", error_key)
 
             if alert_type == "new_error":
-                # Format error message
-                formatted = f"⚠️ Claude Usage Scraper - Error\n\n"
-                formatted += f"Time: {timestamp}\n"
-                formatted += f"File: {record.filename}:{record.lineno}\n\n"
-                formatted += f"Message:\n{message}\n"
+                # Format error message - limit to 200 chars
+                formatted = f"⚠️ Error {timestamp}\n{record.filename}:{record.lineno}\n{message[:150]}"
 
-                if record.exc_info:
-                    formatted += "\nTraceback:\n" + "".join(traceback.format_exception(*record.exc_info))
-
-                send_telegram_log("🔴 CC_USAGE_WEB ERROR", formatted)
+                send_telegram_log("🔴 CC_USAGE_WEB", formatted)
                 save_state("error", error_key)
+                if self.verbose:
+                    print(f"[Telegram] Error alert sent (state: {STATE_FILE})", file=sys.stderr)
             elif alert_type is None:
                 # Same error - just update timestamp
                 save_state("error", error_key)
+                if self.verbose:
+                    print(f"[Telegram] Same error - alert suppressed (state: {STATE_FILE})", file=sys.stderr)
 
         except Exception:
             self.handleError(record)
 
 
-# Configure logger with Telegram handler
+# Configure logger
 logger = logging.getLogger("cc_usage_web")
 logger.setLevel(logging.INFO)
-if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
-    logger.addHandler(TelegramErrorHandler(level=logging.ERROR))
+
+# Telegram handler will be added in main() with verbose flag
 
 
 def log(message, verbose):
@@ -294,18 +296,97 @@ def parse_usage_text(text):
 
 
 
+def cleanup_stale_lock(profile_dir):
+    """Remove Chrome profile lock if process is dead."""
+    lock_path = Path(profile_dir) / "SingletonLock"
+    if not lock_path.exists():
+        return
+
+    try:
+        target = lock_path.read_text().strip()
+        if "-" in target:
+            pid = int(target.split("-")[-1])
+            # Check if process exists
+            try:
+                os.kill(pid, 0)  # Signal 0 just checks if process exists
+                # Process exists - lock is valid
+                return
+            except OSError:
+                # Process doesn't exist - remove stale lock
+                lock_path.unlink()
+    except Exception:
+        # Can't read or parse lock - remove it
+        try:
+            lock_path.unlink()
+        except Exception:
+            pass
+
+
 def build_driver(profile_dir, headless):
     try:
+        # Clean up stale locks before starting
+        cleanup_stale_lock(profile_dir)
+
         options = webdriver.ChromeOptions()
         options.add_argument(f"--user-data-dir={profile_dir}")
+
+        # Cache directory for faster page loading
+        cache_dir = "/tmp/chrome-cache"
+        options.add_argument(f"--disk-cache-dir={cache_dir}")
+
+        # Fast page loading - don't wait for images/stylesheets
+        options.page_load_strategy = "eager"
+
+        # Headless mode
+        if headless:
+            options.add_argument("--headless")
+
+        # Standard options
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
-        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--window-size=3840,2160")
+
+        # Enhanced anti-detection measures (bypass Cloudflare)
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("useAutomationExtension", False)
+
+        # Additional stealth options
+        options.add_argument("--disable-features=VizDisplayCompositor")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-background-networking")
+
+        # Only disable images in headless mode for performance
         if headless:
-            options.add_argument("--headless=new")
-        options.page_load_strategy = "eager"
-        return webdriver.Chrome(options=options)
+            options.add_argument("--disable-images")
+
+        options.add_argument("--no-first-run")
+        options.add_argument("--no-default-browser-check")
+        options.add_argument("--disable-default-apps")
+
+        # Real user agent
+        options.add_argument(
+            "--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+
+        # Debug: show Chrome command
+        args_list = [arg for arg in options.arguments]
+        print(f"[DEBUG] Chrome arguments: {args_list}", file=sys.stderr)
+        print(f"[DEBUG] Profile dir: {profile_dir}", file=sys.stderr)
+        print(f"[DEBUG] Experimental options: {options.experimental_options}", file=sys.stderr)
+
+        driver = webdriver.Chrome(options=options)
+
+        # Setup anti-detection JavaScript
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        driver.execute_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]})")
+        driver.execute_script("Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']})")
+        driver.execute_script("Object.defineProperty(navigator, 'permissions', {get: () => undefined})")
+        driver.execute_script("window.chrome = { runtime: {} }")
+
+        return driver
     except Exception as e:
         logger.exception(f"Failed to initialize Chrome driver: {e}")
         raise
@@ -516,7 +597,13 @@ def run_cdp_mode(args):
         log(f"Connecting to CDP: {args.cdp_endpoint}", args.verbose)
 
         with sync_playwright() as p:
-            browser = p.chromium.connect_over_cdp(args.cdp_endpoint)
+            try:
+                browser = p.chromium.connect_over_cdp(args.cdp_endpoint)
+            except Exception as cdp_error:
+                error_msg = f"Failed to connect to CDP endpoint {args.cdp_endpoint}"
+                logger.error(f"{error_msg}: {cdp_error}")
+                print("{}")
+                return 1
             context = browser.contexts[0] if browser.contexts else browser.new_context()
             page = context.pages[0] if context.pages else context.new_page()
 
@@ -685,6 +772,11 @@ def main():
     )
     parser.add_argument("--verbose", action="store_true", help="Verbose logs.")
     args = parser.parse_args()
+
+    # Configure Telegram handler with verbose flag
+    if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+        telegram_handler = TelegramErrorHandler(level=logging.ERROR, verbose=args.verbose)
+        logger.addHandler(telegram_handler)
 
     if args.cdp:
         return run_cdp_mode(args)
