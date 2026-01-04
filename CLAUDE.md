@@ -210,7 +210,7 @@ Key dataclasses in `database/models.py`:
 
 ## Session Limit Tracking
 
-**New in v2**: Automatically parses and stores session limit events.
+Automatically parses and stores session limit events.
 
 - Tracks when users hit 5-hour limits, spending caps, or context limits
 - Parses reset times from summary messages (e.g., "resets 12am", "resets 6pm")

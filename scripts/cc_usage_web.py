@@ -579,6 +579,9 @@ def log_to_db(payload, verbose):
 
 def run_cdp_mode(args):
     """Run CDP mode using Python playwright"""
+    # Suppress Node.js deprecation warnings that break JSON output
+    os.environ["NODE_NO_WARNINGS"] = "1"
+
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
